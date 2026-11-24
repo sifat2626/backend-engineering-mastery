@@ -286,19 +286,19 @@ Dormant Fault  ──(Activation)──▶  Active Fault  ──▶  Internal Er
 
 ### Complementary Authoritative Reading
 
-- **Mandatory (~20 min — নির্বাচিত মূল অংশ):** Algirdas Avižienis, Jean-Claude Laprie, Brian Randell, Carl E. Landwehr, *"Basic Concepts and Taxonomy of Dependable and Secure Computing"*, *IEEE TDSC*, Vol. 1, No. 1, pp. 11–33 (Jan–Mar 2004) — [Author-Hosted PDF (Carl Landwehr)](https://www.landwehr.org/cs690/readings/avizienis04basic.pdf) | [IEEE DOI 10.1109/TDSC.2004.2](https://doi.org/10.1109/TDSC.2004.2)। মূলত **Fault, Error, Failure** সংজ্ঞা ও কার্যকারণ শৃঙ্খল, dependability **Attributes**, এবং চারটি **Means** (*Fault Prevention, Fault Tolerance, Fault Removal, Fault Forecasting*)-এ মনোযোগ দিন। Phase 1-এ গভীর hardware fault-tolerance taxonomy-র উপ-অধ্যায়গুলো বাদ দিন।
-- **Mandatory (~15 min):** arc42 Quality Model — [ISO/IEC 25010:2023 Product Quality Model Overview](https://quality.arc42.org/iso-25010/)। ২০২৩ সংস্করণের **৯টি শীর্ষ-স্তরের quality characteristic** (*Functional Suitability, Performance Efficiency, Compatibility, Interaction Capability, Reliability, Security, Maintainability, Flexibility, Safety*) এবং পুরোনো ২০১১ সংস্করণ থেকে আসা পরিবর্তনগুলো দেখে নিন।
-- **Mandatory (~10 min):** Edsger W. Dijkstra, *Notes on Structured Programming* (EWD249, 1969/1970) — [UT Austin PDF](https://www.cs.utexas.edu/users/EWD/ewd02xx/EWD249.PDF) | [HTML Transcription](https://www.cs.utexas.edu/users/EWD/transcriptions/EWD02xx/EWD249.html)। **Section 3 (*"On the Reliability of Mechanisms"*)** পড়ুন—কেন testing bug-এর উপস্থিতি দেখাতে পারে কিন্তু অনুপস্থিতি নয় এবং কেন structural correctness reasoning অপরিহার্য।
+- **Mandatory (~25–35 min — নির্বাচিত মূল অংশ):** Algirdas Avižienis, Jean-Claude Laprie, Brian Randell, Carl E. Landwehr, *"Basic Concepts and Taxonomy of Dependable and Secure Computing"*, *IEEE TDSC*, Vol. 1, No. 1, pp. 11–33 (Jan–Mar 2004) — [Author-Hosted PDF (Carl Landwehr)](https://www.landwehr.org/cs690/readings/avizienis04basic.pdf) | [IEEE DOI 10.1109/TDSC.2004.2](https://doi.org/10.1109/TDSC.2004.2)। মূলত **Fault, Error, Failure** সংজ্ঞা ও কার্যকারণ শৃঙ্খল, dependability **Attributes**, এবং চারটি **Means** (*Fault Prevention, Fault Tolerance, Fault Removal, Fault Forecasting*)-এ মনোযোগ দিন। Phase 1-এ গভীর hardware fault-tolerance taxonomy-র উপ-অধ্যায়গুলো বাদ দিন।
+- **Mandatory (~15–20 min):** arc42 Quality Model — [ISO/IEC 25010:2023 Product Quality Model Overview](https://quality.arc42.org/iso-25010/)। ২০২৩ সংস্করণের **৯টি শীর্ষ-স্তরের quality characteristic** (*Functional Suitability, Performance Efficiency, Compatibility, Interaction Capability, Reliability, Security, Maintainability, Flexibility, Safety*) এবং পুরোনো ২০১১ সংস্করণ থেকে আসা পরিবর্তনগুলো দেখে নিন।
+- **Mandatory (~15–20 min):** Edsger W. Dijkstra, *Notes on Structured Programming* (EWD249, 1969/1970) — [UT Austin PDF](https://www.cs.utexas.edu/users/EWD/ewd02xx/EWD249.PDF) | [HTML Transcription](https://www.cs.utexas.edu/users/EWD/transcriptions/EWD02xx/EWD249.html)। **Section 3 (*"On the Reliability of Mechanisms"*)** পড়ুন—কেন testing bug-এর উপস্থিতি দেখাতে পারে কিন্তু অনুপস্থিতি নয় এবং কেন structural correctness reasoning অপরিহার্য।
 - **Optional Supplementary (মূল ৩.৫ ঘণ্টার বাজেটের বাইরে, বাণিজ্যিক বই):** Martin Kleppmann, *Designing Data-Intensive Applications* (1st ed., O'Reilly, 2017 — Chapter 1-এর *Reliability* ও *Maintainability* অংশ; অথবা Chris Riccomini-র সাথে 2nd ed., O'Reilly, Feb 2026 — data systems trade-offs ও nonfunctional requirements সংক্রান্ত প্রারম্ভিক অধ্যায়)।
 - **Reference (Paywalled Standard — কেনার প্রয়োজন নেই):** ISO/IEC 25010:2023, *Systems and software engineering — SQuaRE — Product quality model* (2nd ed., Nov 2023) — ওপরের বিনামূল্যে পাওয়া arc42 overview-এর পেছনের প্রামাণ্য আন্তর্জাতিক মানদণ্ড।
 
 ---
 
-## Practical Reasoning Exercises (~45–50 Minutes Total)
+## Practical Reasoning Exercises (~50–60 min)
 
 > **Ownership Rule:** সব উত্তর স্বাধীনভাবে `phases/phase-01/notes/block-03-notes.md` ফাইলে লিখুন। AI-কে দিয়ে উত্তর খসড়া করাবেন না। লক্ষ্য হলো ওপরের শেখা mental model-গুলোকে নতুন backend দৃশ্যপটে স্বাধীনভাবে প্রয়োগ করা।
 
-### Exercise 1: Fault → Error → Failure Causal Trace (~25 minutes)
+### Exercise 1: Fault → Error → Failure Causal Trace (~25–30 min)
 
 **দৃশ্যপট (Scenario — নিচের দুটি বাস্তব backend ত্রুটির যেকোনো *একটি* বেছে নিয়ে বিশ্লেষণ করুন; চাইলে বাড়তি অনুশীলনের জন্য দুটিই করতে পারেন):**
 
@@ -317,7 +317,7 @@ Dormant Fault  ──(Activation)──▶  Active Fault  ──▶  Internal Er
 
 ---
 
-### Exercise 2: ISO/IEC 25010:2023 Quality Attribute Tension Matrix (~25 minutes)
+### Exercise 2: ISO/IEC 25010:2023 Quality Attribute Tension Matrix (~25–30 min)
 
 **দৃশ্যপট (Scenario):**
 ধরুন, আপনি একটি growing e-commerce প্ল্যাটফর্মের **Order-Processing API**-এর নকশা ও মান পর্যালোচনা করছেন—যেখানে প্রতি মিনিটে শত শত order তৈরি, যাচাই, payment-সমন্বয় এবং downstream fulfillment সিস্টেমে পাঠানো হয়।
@@ -333,14 +333,14 @@ Dormant Fault  ──(Activation)──▶  Active Fault  ──▶  Internal Er
 
 ---
 
-## Closed-Book Mastery Assessment (Optional — Soft Target ~20–25 Minutes)
+## Closed-Book Mastery Assessment (Optional — ~30–40 min)
 
 এই assessment-টি **ঐচ্ছিক (optional)**—Block 4 শুরু করার জন্য এটি সম্পন্ন করা বা ChatGPT-র অনুমোদন নেওয়া বাধ্যতামূলক নয়। আপনি চাইলে:
 - এই lesson ও বাইরের সব tab বন্ধ করে নিচের পাঁচটি প্রশ্নের স্পষ্ট, মৌলিক ও cause-and-effect সমৃদ্ধ উত্তর `phases/phase-01/notes/block-03-notes.md` ফাইলে লিখে আনুষ্ঠানিক মূল্যায়নের জন্য **ChatGPT**-র কাছে শেয়ার করতে পারেন (`Mastery verified`-এর প্রমাণ হিসেবে);
 - অথবা আপনি যথেষ্ট শিখেছেন মনে করলে assessment বাদ দিয়েই পরের block-এ এগিয়ে যেতে পারেন (`Studied — mastery not formally verified`);
 - অথবা assessment না করেই যেকোনো অস্পষ্ট ধারণা নিয়ে প্রশ্ন ও আলোচনা করতে পারেন।
 
-*(নোট: ~২০–২৫ মিনিট কেবল যাঁরা এটি করতে চান তাঁদের জন্য একটি আনুমানিক লক্ষ্যমাত্রা—কঠোর সময়সীমা নয়। পাঁচটি বিশ্লেষণাত্মক প্রশ্ন গভীরভাবে লিখতে এর চেয়ে বেশি সময় লাগতেই পারে।)*
+*(নোট: ~৩০–৪০ মিনিট কেবল যাঁরা এটি করতে চান তাঁদের জন্য একটি আনুমানিক লক্ষ্যমাত্রা—কঠোর সময়সীমা নয়। পাঁচটি বিশ্লেষণাত্মক প্রশ্ন গভীরভাবে লিখতে এর চেয়ে বেশি সময় লাগতেই পারে।)*
 
 1. **(LO 3.1 / Outcome 4)** Specification conformance, **preconditions**, **postconditions**, এবং **invariants**-এর সাহায্যে software correctness-এর সংজ্ঞা দিন। **Partial correctness** ও **total correctness**-এর পার্থক্য কী, এবং production backend-এ termination বা liveness কেন গুরুত্বপূর্ণ?
 2. **(LO 3.2 / Outcome 4)** একটি নিজস্ব backend উদাহরণের মাধ্যমে **Fault → Error → Failure** শৃঙ্খল (dormant বনাম active fault এবং latent বনাম detected error-সহ) ব্যাখ্যা করুন। এরপর **fault prevention**, **fault removal**, **fault tolerance**, এবং **fault forecasting**-এর পার্থক্য দেখান—বিশেষত fault tolerance কেন fault prevention নয় তা স্পষ্ট করুন।
