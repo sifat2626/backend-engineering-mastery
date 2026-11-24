@@ -6,13 +6,14 @@
 | :--- | :--- | :--- |
 | `planned` | Approved in `MASTER_ROADMAP.md` but not yet started. | ChatGPT / Roadmap |
 | `in progress` | Actively being studied, researched, or implemented by the learner. | Learner |
-| `completed` | Learner has finished the study, notes, labs, or checkpoint work and submitted evidence. | Learner |
-| `approved` | ChatGPT (Curriculum Owner & Instructor) has evaluated mastery and signed off. | ChatGPT only |
+| `completed` | Learner has finished studying a block or task (distinguished in Notes between **`Studied — mastery not formally verified`** and **`Mastery verified`**). | Learner |
+| `approved` | ChatGPT (Curriculum Owner & Instructor) has evaluated sufficient mastery evidence (`Mastery verified`) and signed off. | ChatGPT only |
 
 > **Rules:**
 > - Agent-generated notes, scaffolds, or code examples **never** count as `completed` learning.
 > - AI-generated material, agent research, and artifact generation time **never** count as learner study hours.
-> - ChatGPT retains final authority over mastery assessment and phase completion.
+> - Formal block assessments are **optional** and progression between blocks is learner-controlled; skipping an assessment never automatically counts as **`Mastery verified`** or `approved`.
+> - ChatGPT retains final authority over formal mastery verification (`Mastery verified`) and `approved` sign-off.
 
 ---
 
@@ -21,13 +22,13 @@
 - **Phase Status:** `in progress` (not approved)
 - **Allocated Hours:** 26 *(block hour estimates are approximate and do not change the 26-hour allocation)*
 - **Folder:** [phases/phase-01/](./phases/phase-01/)
-- **Current Position:** Diagnostic completed; Block 1 (*"What Is Software Engineering?"*) in progress (completion not confirmed).
+- **Current Position:** Diagnostic `completed`; Block 1 (*"What Is Software Engineering?"*) studied (**`Studied — mastery not formally verified`**); **Block 2 (*"Understanding the Problem Before Coding"*)** is the next active learning block (lesson reviewed and ready to study).
 
 | Item | Approx. Hours | Status | Notes / Evidence |
 | :--- | :--- | :--- | :--- |
 | Phase 1 Diagnostic | — | `completed` | Completed prior to repo setup. Do not repeat. |
-| Block 1: What Is Software Engineering? | 3–4 hours | `in progress` | Started prior to repo setup; completion not confirmed. |
-| Block 2: Understanding the Problem Before Coding | 2–3 hours | `planned` | — |
+| Block 1: What Is Software Engineering? | 3–4 hours | `completed` | **Studied — mastery not formally verified.** Lesson studied and Pause & Checks 1–3 recorded in [block-01-notes.md](./phases/phase-01/notes/block-01-notes.md); optional formal mastery verification not completed. |
+| Block 2: Understanding the Problem Before Coding | 2–3 hours | `in progress` | **Next active learning block.** Teaching artifact [block-02-understanding-the-problem-before-coding.md](./phases/phase-01/materials/block-02-understanding-the-problem-before-coding.md) reviewed by ChatGPT and ready for learner study. |
 | Block 3: Correctness and Software Quality | 3–4 hours | `planned` | — |
 | Block 4: Engineering Constraints and Trade-offs | 3–4 hours | `planned` | — |
 | Block 5: Evidence-Based Engineering | 2–3 hours | `planned` | — |

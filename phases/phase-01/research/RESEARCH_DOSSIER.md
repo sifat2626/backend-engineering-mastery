@@ -2,7 +2,7 @@
 
 > **Document Type:** Research & Preparation Dossier (Pre-Material Stage — **not** final learning materials)
 > **Phase Authority:** ChatGPT (Curriculum Owner & Instructor) — **26 focused learner-study hours total** (block targets are estimates, not hard deadlines; mastery takes priority)
-> **Continuity Context:** Phase 1 Diagnostic is `completed` (must **not** be repeated). The learner has confirmed starting Phase 1 learning **from scratch** at Block 1 (*"What Is Software Engineering?"*), beginning from its first concept with no prior Block 1 learning content assumed completed. Phase 1 is `not approved`.
+> **Continuity Context:** Phase 1 Diagnostic is `completed` (must **not** be repeated). Live learning position is tracked in `PROGRESS.md` and `NEXT_SESSION.md`: Block 1 (*"What Is Software Engineering?"*) has been studied (**`Studied — mastery not formally verified`**, with learner notes in `phases/phase-01/notes/block-01-notes.md`), and Block 2 (*"Understanding the Problem Before Coding"*) is the next active learning block. Phase 1 is `not approved`.
 > **Knowledge-Depth Model:** Uses the repository's three official knowledge levels (`Awareness`, `Working Understanding`, `Practical Competence`). Mechanism-level depth and production relevance are dimensions applied across these levels, not additional levels.
 
 ---
@@ -43,7 +43,7 @@
 
 ### Block 1: What Is Software Engineering? (3 hours)
 
-*Starting from scratch at the first concept (Diagnostic already completed; do not repeat).*
+*Historical preparation note: Block 1 material was prepared from scratch (Diagnostic already completed; do not repeat). See `PROGRESS.md` and `NEXT_SESSION.md` for live learning status.*
 
 #### Learning Objectives
 - **LO 1.1 (`Working Understanding`):** Distinguish clearly between **programming** (producing executable code for a task), **software development** (building and shipping software products/features), and **software engineering** (applying systematic, disciplined, quantifiable engineering practices to design, evolve, and sustain software across time, scale, and competing constraints). *Note: This three-way distinction is a **course working definition** grounded in Winters et al. and SWEBOK to sharpen engineering judgment, rather than a single universally standardized industry taxonomy.*
@@ -444,4 +444,4 @@
 
 ### D. Continuity Note
 - Phase 1 Diagnostic is `completed` and must not be repeated.
-- Block 1 (*"What Is Software Engineering?"*) will be prepared **from scratch, starting from its first concept**, with no prior Block 1 content assumed completed.
+- Block 1 (*"What Is Software Engineering?"*) was originally prepared from scratch and has since been studied by the learner (**`Studied — mastery not formally verified`**; see `phases/phase-01/notes/block-01-notes.md`). Block 2 (*"Understanding the Problem Before Coding"*) is now the next active learning block. Always treat `PROGRESS.md` and `NEXT_SESSION.md` as the authoritative live continuity trackers.
