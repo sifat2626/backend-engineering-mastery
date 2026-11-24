@@ -35,6 +35,6 @@ Concepts and technologies from the following 12 areas in `MASTER_ROADMAP.md` wil
 
 ## Index
 
-| Phase | Concept / Technology | Type | Definition | Core Mechanism | Alternatives | Key Trade-Offs & Failure Modes | Required Depth | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| *(Phase 1+ entries will be added as studied)* | — | — | — | — | — | — | — | — |
+| Phase | Concept / Technology | Type | Problem Solved & Definition | Prerequisites (Depends On) | Core Mechanism | Alternatives | Key Trade-Offs & Failure Modes | Enables / Connects To | Required Depth | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| *(Phase 1+ entries will be added as studied)* | — | — | — | — | — | — | — | — | — | — |

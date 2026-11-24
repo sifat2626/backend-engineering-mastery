@@ -13,6 +13,16 @@
 - **Independent reasoning and evidence-based decisions** rather than folklore or unverified assumptions.
 - **AI-assisted engineering with verification and accountability:** use AI as a research and engineering partner while independently inspecting, testing, and verifying its output.
 
+## Hybrid Teaching & Connected Journey Model
+
+Teaching materials must actively **teach** through a guided intellectual journey rather than read like reference manuals or collections of isolated definitions.
+
+- **Problem-first discovery:** Begin with a concrete situation the learner can understand so they feel the problem or limitation *before* formal terminology is named.
+- **Prerequisite-aware explanations:** Identify what must be understood before an idea makes sense and weave missing prerequisites naturally into prose right when needed—never assume untaught future-phase machinery.
+- **Progressive technical depth:** Build intuition with simple examples first, then advance cleanly into formal definitions, internal mechanisms, invariants, cause-and-effect reasoning, trade-offs, limitations, and production failure modes. Never stop at surface analogies.
+- **Connected engineering mental model:** Every phase and block links backward to what was already learned and forward to the unanswered question that motivates what comes next, anchored across all 29 phases in [LEARNING_JOURNEY.md](./LEARNING_JOURNEY.md).
+- **Instructor voice over textbook density:** Use connected explanatory prose; keep the learner's path free of bureaucratic metadata, premature term boxes, and disconnected mini-articles. **The final success criterion is learner understanding, not document completeness.**
+
 ## Study Discipline & Focus
 
 - **One active phase at a time:** do not pre-generate or study future phases in parallel.

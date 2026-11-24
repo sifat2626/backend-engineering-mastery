@@ -26,3 +26,15 @@ This file records durable structural, workflow, and tooling decisions for the re
   2. **Working Understanding**
   3. **Practical Competence**
 - **Clarification:** Mechanism-level depth and production-level understanding are dimensions applied across these three levels, not additional mandatory levels.
+
+---
+
+## DEC-003: Connected Engineering Journey & Guided Discovery Teaching Model (2026-11-24)
+
+- **Status:** Accepted
+- **Decisions:**
+  1. **Connected 29-phase journey:** Add high-level `LEARNING_JOURNEY.md` explaining phase relationships, mental models, longitudinal concept dependencies, and forward-reference seams—strictly subordinate to `MASTER_ROADMAP.md` with no changes to roadmap order, scope, or hours.
+  2. **Hybrid guided-discovery pedagogy:** Teaching materials must actively teach in connected instructor prose (problem-first, prerequisite-aware, progressive technical depth) rather than reading like reference manuals. The 12-step standard acts strictly as an internal quality checklist alongside the four-question Transition Test and Read-Aloud Quality Gate—never as a rigid document template or learner-facing metadata clutter.
+  3. **Internal terminology tiers (distinct from DEC-002):** Authoring materials classify terms internally as **Prerequisite**, **Supporting**, or **Context** (`Awareness` remains reserved exclusively as an official DEC-002 knowledge-depth level).
+  4. **Recurring example & transfer discipline:** Evolve a promotional-code redemption application across suitable phases without forcing it where native examples are clearer; require novel transfer scenarios in exercises rather than repeating solved walkthroughs.
+  5. **Relational knowledge index & skill alignment:** Add `Problem Solved`, `Prerequisites`, and `Enables / Connects To` columns to `BACKEND_KNOWLEDGE_INDEX.md`, align existing `.agents/skills/*`, and add `.agents/skills/teaching-material-design/SKILL.md`.

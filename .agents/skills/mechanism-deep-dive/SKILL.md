@@ -3,35 +3,37 @@ name: mechanism-deep-dive
 description: >-
   Use this skill when the learner wants a deep, mechanism-level exploration of a
   backend concept, protocol, OS primitive, runtime behavior, or database internal
-  within the active phase. Enforces coverage of mechanisms, invariants, failure
-  modes, ecosystem alternatives, trade-offs, and a verification path.
+  within the active phase. Enforces prerequisite-aware, discovery-first prose
+  progressing from intuition into mechanisms, invariants, failure modes,
+  ecosystem alternatives, trade-offs, and verification.
 ---
 
 # Mechanism Deep Dive
 
-Guide a rigorous, mechanism-level investigation of a topic inside the active phase.
+Guide a rigorous, mechanism-level investigation inside the active phase so the learner builds a connected mental model rather than memorizing isolated technical facts.
 
 ## Authority & Scope Checks
 
-1. Check `PROGRESS.md` and `NEXT_SESSION.md` to confirm the topic belongs to the active phase and block.
+1. Read `PROGRESS.md`, `NEXT_SESSION.md`, and `LEARNING_JOURNEY.md` to confirm the topic belongs to the active phase and block—then inspect relevant learner-authored notes, exercises, and verified lab evidence before treating any prerequisite as mastered. Status tracking provides useful context, but learner evidence determines what can safely be assumed.
 2. Do not mark the topic `completed` after generating an explanation; mastery requires learner synthesis and verification.
 3. Do not overwrite existing learner notes unless explicitly asked.
 
-## Required Investigation Structure
+## Internal Preparation (Do Not Dump Onto the Learner)
 
-Address the topic across six concrete dimensions:
+Before writing, classify technical terms internally as **Prerequisite** (must be understood before proceeding), **Supporting** (explain in 1–2 plain sentences inline; internals come later), or **Context** (ecosystem purpose only). Plan how each idea follows naturally from the previous one.
 
-1. **Problem & Definition:** What exact engineering problem this concept or technology solves, and what it is (no hand-waving).
-2. **Underlying Mechanism:** How it actually works under the hood (data structures, memory layout, OS syscalls, wire framing, scheduling, concurrency control, or storage engine mechanics). Cite primary sources or version-specific details where relevant.
-3. **Invariants & Edge Cases:** What assumptions must hold, and where naive mental models break.
-4. **Production Failure Modes:** How this fails under real load, partial failure, resource exhaustion, contention, or misconfiguration—and how failures manifest in telemetry/logs.
-5. **Alternatives & Trade-Offs:** Compare against broader backend ecosystem alternatives (including Node.js / PostgreSQL context where applicable), naming what is gained and sacrificed.
-6. **Independent Verification:** Propose a minimal, concrete experiment, query, trace, or primary-source check so the learner can verify the mechanism firsthand.
+## Guided Discovery Flow
 
-## Optional Follow-Up
+Write in connected instructor prose (use tables/lists only when they genuinely clarify) moving naturally through:
 
-- Ask 1–3 targeted probing questions to test the learner's mental model rather than assuming understanding.
-- When adding or updating an entry in `BACKEND_KNOWLEDGE_INDEX.md`:
-  - Use only the three official depth levels (`Awareness`, `Working Understanding`, `Practical Competence`).
-  - Clearly distinguish researched or AI-generated content from learner-verified understanding (only mark an entry learner-verified / `completed` after the learner has reviewed and confirmed their understanding).
-  - Do not mark an entry `approved` without explicit ChatGPT sign-off.
+1. **Concrete Situation & Problem:** Open with a real scenario where naive assumptions fail, weaving in any missing **Prerequisite** concepts right where needed.
+2. **Intuition Before Formalism:** Build a clear mental model with a simple example, then name the formal concept once the underlying idea is clear.
+3. **Step-by-Step Mechanism & Cause-and-Effect:** Unpack how it works under the hood (data structures, memory, OS syscalls, wire framing, scheduling, concurrency control, or storage mechanics) with primary sources or version-specific details where relevant.
+4. **Invariants, Limits & Production Failure Modes:** Explain what must hold, where naive mental models break, and how real load, contention, partial failure, or misconfiguration manifests.
+5. **Alternatives & Trade-Offs:** Compare honestly against broader backend ecosystem alternatives (highlighting Node.js / PostgreSQL context where applicable).
+6. **Forward Connection & Independent Verification:** Show how this reframes the problem and what unanswered question comes next, then propose a minimal experiment, query, trace, or primary-source check—plus 1–3 probing questions.
+
+## Quality Gate & Index Hygiene
+
+- **Read-aloud check:** Ensure every transition has an intellectual reason and no unexplained terms interrupt flow.
+- When adding or updating `BACKEND_KNOWLEDGE_INDEX.md`, populate its relational columns (`Problem Solved & Definition`, `Prerequisites`, `Enables / Connects To`), use only the three official depth levels (`Awareness`, `Working Understanding`, `Practical Competence`), distinguish researched content from learner-verified understanding, and never mark `approved` without ChatGPT sign-off.

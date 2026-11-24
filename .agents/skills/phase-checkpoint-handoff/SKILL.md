@@ -20,10 +20,11 @@ Prepare a clean, verifiable mastery handoff packet for ChatGPT without fabricati
 
 ## Steps
 
-1. Read `MASTER_ROADMAP.md` (progression criteria for the active phase), `PROGRESS.md`, `phases/phase-XX/README.md`, `phases/phase-XX/checkpoint.md`, and all learner-authored files in `phases/phase-XX/notes/` and `phases/phase-XX/lab/`.
+1. Read `MASTER_ROADMAP.md`, `LEARNING_JOURNEY.md`, `PROGRESS.md`, `phases/phase-XX/README.md`, `phases/phase-XX/checkpoint.md`, and all learner-authored files in `phases/phase-XX/notes/` and `phases/phase-XX/lab/`.
 2. Audit completeness against the approved phase criteria:
    - List every required block/objective and link to the learner's corresponding learner-authored notes or verified lab artifacts.
-   - Flag any uncovered objectives, unverified claims, or incomplete experiments honestly as open gaps.
+   - Run a **Connected Mental Model Check:** verify whether the learner's notes demonstrate how blocks inside the phase connect into one coherent mental model and surface the unanswered engineering question motivating the next phase in `LEARNING_JOURNEY.md`.
+   - Flag any uncovered objectives, unverified claims, weak cross-block connections, or incomplete experiments honestly as open gaps.
 3. Update `phases/phase-XX/checkpoint.md` while **preserving all existing learner reflections, lab evidence, and prior ChatGPT feedback**:
    - **Evidence Inventory:** Links to learner-authored notes, verified labs, and `BACKEND_KNOWLEDGE_INDEX.md` entries added in this phase.
    - **Open Gaps / Uncertainties:** Explicit list of anything still needing clarification or Instructor probing.
@@ -34,4 +35,4 @@ Prepare a clean, verifiable mastery handoff packet for ChatGPT without fabricati
    - Learner-authored evidence supports the required objectives,
    - Open gaps have been explicitly acknowledged by the learner, and
    - The learner confirms submission.
-   Never mark a phase `approved` without explicit ChatGPT sign-off.
+   Never mark an entry or phase `approved` without explicit ChatGPT sign-off.

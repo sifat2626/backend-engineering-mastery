@@ -3,17 +3,18 @@ name: phase-kickoff
 description: >-
   Use this skill when the learner is ready to initialize a newly unlocked phase
   after ChatGPT has approved completion of the previous phase. Scaffolds only
-  the single target phase directory from MASTER_ROADMAP.md and updates
-  PROGRESS.md and NEXT_SESSION.md without generating learning materials in advance.
+  the single target phase directory from MASTER_ROADMAP.md and LEARNING_JOURNEY.md,
+  and updates PROGRESS.md and NEXT_SESSION.md without generating learning
+  materials in advance.
 ---
 
 # Phase Kickoff
 
-Initialize a single newly unlocked phase while strictly preserving curriculum authority and one-phase-at-a-time discipline.
+Initialize a single newly unlocked phase while strictly preserving curriculum authority, journey continuity, and one-phase-at-a-time discipline.
 
 ## Authority Checks (Required Before Acting)
 
-1. Read `AGENTS.md`, `MASTER_ROADMAP.md`, `PROGRESS.md`, and `NEXT_SESSION.md`.
+1. Read `AGENTS.md`, `MASTER_ROADMAP.md`, `LEARNING_JOURNEY.md`, `PROGRESS.md`, and `NEXT_SESSION.md`.
 2. Enforce explicit phase-unlocking rules:
    - Phase 1 may be initialized because it is the explicitly authorized starting phase.
    - For Phase N (N > 1), Phase N-1 must be marked `approved` by ChatGPT in `PROGRESS.md`.
@@ -24,16 +25,16 @@ Initialize a single newly unlocked phase while strictly preserving curriculum au
 
 ## Steps
 
-1. Locate the exact entry for Phase N in `MASTER_ROADMAP.md`. If the phase definition is missing, stop and ask the learner to transfer the approved definition from ChatGPT first.
+1. Locate the exact entry for Phase N in `MASTER_ROADMAP.md` and its conceptual bridge in `LEARNING_JOURNEY.md`. If the approved phase definition is missing, stop and ask the learner to transfer it from ChatGPT first.
 2. Before editing an existing phase `README.md` or `checkpoint.md`, inspect its contents. Preserve existing learner work and previous feedback. Never overwrite them without explicit confirmation.
 3. Create (or update without overwriting learner work) `phases/phase-XX/` containing only structural scaffolding:
-   - `README.md` — Copy the approved phase title, scope, allocated hours, blocks, and progression criteria verbatim from `MASTER_ROADMAP.md`.
+   - `README.md` — Copy the approved phase title, scope, allocated hours, blocks, and progression criteria verbatim from `MASTER_ROADMAP.md`; include a brief **Journey Context & Inherited Prerequisites** pointer drawn from `LEARNING_JOURNEY.md` (without altering roadmap scope), and document the standard phase layout (`research/`, `materials/`, `notes/`, `lab/`, `checkpoint.md`).
    - `notes/.gitkeep`
    - `lab/.gitkeep`
    - `checkpoint.md` — Blank mastery evidence template awaiting learner work and ChatGPT sign-off (if not already present).
 4. Update `PROGRESS.md` to set Phase N to `in progress` (never `completed` or `approved`).
 5. Update `NEXT_SESSION.md` with the exact starting block and immediate next step.
-6. Do **not** generate conceptual notes, answers, or lab solutions during kickoff.
+6. Do **not** generate conceptual notes, teaching materials, answers, or lab solutions during kickoff.
 
 ## Validation
 
