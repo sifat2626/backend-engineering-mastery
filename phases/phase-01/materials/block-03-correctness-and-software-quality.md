@@ -1,5 +1,23 @@
 # Phase 1, Block 3 — Correctness and Software Quality
 
+## Study Time Guide
+
+| কার্যক্রম (Activity) | নির্ধারিত পরিসর (Scope) | আনুমানিক সময় (Estimated Time) |
+| :--- | :--- | :---: |
+| **Guided Lesson + Pause & Checks 1–3** *(মূল অগ্রাধিকার)* | পুরো মূল lesson গভীরভাবে পড়া ও `notes/block-03-notes.md`-এ inline check লেখা | **~90–120 min** *(নমনীয় — সীমা নয়)* |
+| **Mandatory Reading 1:** Avižienis et al. (2004) | কেবল Fault/Error/Failure শৃঙ্খল, dependability Attributes ও চারটি Means *(hardware taxonomy বাদে)* | ~25–35 min |
+| **Mandatory Reading 2:** arc42 — ISO/IEC 25010:2023 | ২০২৩ সংস্করণের ৯টি শীর্ষ-স্তরের quality characteristic ও পরিবর্তনগুলো | ~15–20 min |
+| **Mandatory Reading 3:** Dijkstra (EWD249) | কেবল Section 3 (*"On the Reliability of Mechanisms"*) | ~15–20 min |
+| **Exercise 1:** Fault → Error → Failure Trace | একটি বাস্তব backend ত্রুটির সম্পূর্ণ কার্যকারণ বিশ্লেষণ ও dependability interception | ~25–30 min |
+| **Exercise 2:** Quality Attribute Tension Matrix | Order-Processing API-র জন্য ৪টি ISO/IEC 25010:2023 বৈশিষ্ট্যের বাস্তব trade-off বিশ্লেষণ | ~25–30 min |
+| **মোট (Optional Assessment ছাড়া)** | Guided Lesson + ৩টি Mandatory Reading + ২টি Exercise | **~195–255 min (~3.25–4.25 h)** |
+| **Optional Closed-Book Assessment** *(ঐচ্ছিক)* | বই/নোট বন্ধ রেখে ৫টি সংশ্লেষণাত্মক (synthesis) প্রশ্নের উত্তর লেখা | ~30–40 min *(optional)* |
+| **মোট (Optional Assessment সহ)** | ওপরের সব কার্যক্রম + ঐচ্ছিক Closed-Book Assessment | **~225–295 min (~3.75–4.9 h)** |
+
+> **পরিকল্পনা-নির্দেশিকা (Planning Note):** ওপরের প্রতিটি সময় কেবল আনুমানিক পরিকল্পনা-সহায়িকা—কোনো কার্যক্রমেরই কঠোর সময়সীমা (strict time limit) নেই। দ্রুত শেষ করার চেয়ে ধারণাগুলো গভীরভাবে বোঝাই মূল অগ্রাধিকার; বিশেষ করে **Guided Lesson**-এর সময়-হিসাব সম্পূর্ণ নমনীয়, তাই জটিল কোনো অংশ বুঝতে এর চেয়ে বেশি সময় লাগা স্বাভাবিক। প্রতিটি reading-এর সময় কেবল এই block-এ নির্ধারিত অংশগুলোর জন্য হিসাব করা হয়েছে, পুরো গবেষণাপত্র বা মানদণ্ড পড়ার জন্য নয়। আনুষ্ঠানিক **Optional Closed-Book Assessment** পরের block-এ এগোনোর জন্য বাধ্যতামূলক নয়। *(মূল roadmap-এ Block 3-এর ~৩.৫ ঘণ্টার বরাদ্দটি একটি আনুমানিক রেফারেন্স হিসেবেই অপরিবর্তিত আছে।)*
+
+---
+
 Block 2-এ আপনি একটি কঠিন অভ্যাস তৈরি করেছেন: এক লাইন কোড লেখার আগেই Problem Space-এ দাঁড়িয়ে অস্পষ্টতা খুঁজে বের করা এবং BCP 14-এ যাচাইযোগ্য শর্ত লেখা। এবার এক ধাপ এগিয়ে যান। ধরুন, আমাদের সেই বাড়তে থাকা online store-এর জন্য আপনি নতুন একটি campaign feature বানালেন—`LAUNCH50`, যেটি checkout-এ যেকোনো order থেকে ৫০ টাকা flat ছাড় দেয় এবং পুরো campaign-এ সর্বোচ্চ ১,০০০ বার ব্যবহার করা যাবে।
 
 আপনি Node.js ও PostgreSQL-এ কোড লিখলেন, ১২টি unit test লিখলেন, আর প্রতিটি test সবুজ (green) হয়ে পাস করল। Staging-এ ৫০০ টাকার একটি order-এ `LAUNCH50` বসিয়ে দেখলেন দাম ৪৫০ টাকা হয়ে গেল, আর database-এ `used_count` শূন্য থেকে বেড়ে ১ হলো। কোডটি production-এ deploy করা হলো। টানা দুই সপ্তাহ ধরে স্বাভাবিক traffic-এ (ঘণ্টায় ১০–১৫টি order) একটিও error log নেই, কোনো customer অভিযোগ করেননি, monitoring dashboard ঝকঝকে সবুজ।
@@ -255,17 +273,9 @@ Dormant Fault  ──(Activation)──▶  Active Fault  ──▶  Internal Er
 >
 > **Progression & Verification Policy:** আনুষ্ঠানিক assessment **ঐচ্ছিক (optional)** এবং পরের block-এ এগোনোর নিয়ন্ত্রণ আপনার হাতে। আপনি চাইলে assessment সম্পন্ন করে মূল্যায়নের জন্য ChatGPT-র কাছে শেয়ার করতে পারেন (`Mastery verified`-এর প্রমাণ হিসেবে), নিজে যথেষ্ট শিখেছেন মনে করলে assessment বাদ দিয়ে এগিয়ে যেতে পারেন (`Studied — mastery not formally verified`), অথবা assessment ছাড়াই যেকোনো অস্পষ্ট ধারণা নিয়ে প্রশ্ন ও আলোচনা করতে পারেন। কোনো গুরুত্বপূর্ণ ফাঁক থাকলে ChatGPT বাড়তি যাচাইয়ের পরামর্শ দিতে পারেন, তবে assessment সম্পন্ন করা বা ChatGPT-র অনুমোদন পরের block শুরু করার বাধ্যতামূলক শর্ত নয়। Assessment বাদ দিলে তা স্বয়ংক্রিয়ভাবে `Mastery verified` বলে গণ্য হয় না।
 
-### Flexible ~3.5-Hour (~210-Minute) Planning Reference
+### Study Time Reference
 
-*এই ৩.৫ ঘণ্টার বিভাজন একটি নমনীয় পরিকল্পনা-নির্দেশিকা, কোনো কঠোর সময়সীমা নয়। মূল গুরুত্ব দিন **Guided Lesson** গভীরভাবে বোঝার ওপর—কোনো mental model পরিষ্কার হতে বাড়তি সময় লাগলে তাড়াহুড়ো করবেন না।*
-
-| Stage | কাজ (Activity) | নমনীয় পরিকল্পনা (Planning Reference) |
-| :---: | :--- | :---: |
-| **1** | ওপরের Guided Lesson গভীরভাবে পড়া + `notes/block-03-notes.md`-এ Pause & Checks 1–3 সম্পন্ন করা *(মূল অগ্রাধিকার)* | ~90–100 min |
-| **2** | Complementary Mandatory Reading (Avižienis et al. 2004 নির্বাচিত অংশ + arc42 ISO/IEC 25010:2023 + Dijkstra EWD249 Sec. 3) | ~45 min |
-| **3** | `notes/block-03-notes.md`-এ স্বাধীনভাবে Practical Reasoning Exercises 1–2 সম্পন্ন করা | ~45–50 min |
-| **4** | *(Optional)* বই/নোট বন্ধ রেখে Closed-Book Mastery Assessment Questions 1–5 লেখা (চাইলে মূল্যায়নের জন্য ChatGPT-র কাছে শেয়ার করা) | ~20–25 min *(soft target)* |
-| **Total** | — | **~210 min (~3.5 h)** |
+*কার্যক্রমভিত্তিক বাস্তবসম্মত সময়-বিভাজনের জন্য এই নথির শুরুর **Study Time Guide** দেখুন। মূল roadmap-এ Block 3-এর ~৩.৫ ঘণ্টার বরাদ্দটি একটি আনুমানিক রেফারেন্স; কোনো কার্যক্রমেরই কঠোর সময়সীমা নেই।*
 
 ### Block 3 Learning Objectives *(Primary: Outcome 4; Supporting: Outcome 7)*
 
