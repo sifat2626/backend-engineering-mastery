@@ -38,3 +38,14 @@ This file records durable structural, workflow, and tooling decisions for the re
   3. **Internal terminology tiers (distinct from DEC-002):** Authoring materials classify terms internally as **Prerequisite**, **Supporting**, or **Context** (`Awareness` remains reserved exclusively as an official DEC-002 knowledge-depth level).
   4. **Recurring example & transfer discipline:** Evolve a promotional-code redemption application across suitable phases without forcing it where native examples are clearer; require novel transfer scenarios in exercises rather than repeating solved walkthroughs.
   5. **Relational knowledge index & skill alignment:** Add `Problem Solved`, `Prerequisites`, and `Enables / Connects To` columns to `BACKEND_KNOWLEDGE_INDEX.md`, align existing `.agents/skills/*`, and add `.agents/skills/teaching-material-design/SKILL.md`.
+
+---
+
+## DEC-004: Teaching-Language Policy — Natural Bangla with English Technical Terminology (2026-11-24)
+
+- **Status:** Accepted
+- **Decision:** Standardize learning materials and teaching explanations across all 29 phases on **natural, technically accurate Bangla prose with original English technical terminology** (codified in `LEARNING_PHILOSOPHY.md`, `.agents/rules/learning-standards.md`, `.agents/skills/teaching-material-design/SKILL.md`, and `.agents/skills/mechanism-deep-dive/SKILL.md`):
+  1. Main explanations, exercises, and assessment prompts use clear, natural Bangla (never Romanized Bangla or awkward literal translations) without reducing mechanism-level rigor.
+  2. Technical terms, code, commands, identifiers, APIs, configuration, appropriate diagram labels, and authoritative English books/documentation titles remain in English, with technical terms explained clearly in Bangla when first introduced.
+  3. English engineering writing and documentation practice is retained wherever the curriculum requires it.
+  4. Does not alter `MASTER_ROADMAP.md`, approved hours, learning objectives, or curriculum scope.

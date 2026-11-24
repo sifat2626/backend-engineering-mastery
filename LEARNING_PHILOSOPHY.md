@@ -22,6 +22,7 @@ Teaching materials must actively **teach** through a guided intellectual journey
 - **Progressive technical depth:** Build intuition with simple examples first, then advance cleanly into formal definitions, internal mechanisms, invariants, cause-and-effect reasoning, trade-offs, limitations, and production failure modes. Never stop at surface analogies.
 - **Connected engineering mental model:** Every phase and block links backward to what was already learned and forward to the unanswered question that motivates what comes next, anchored across all 29 phases in [LEARNING_JOURNEY.md](./LEARNING_JOURNEY.md).
 - **Instructor voice over textbook density:** Use connected explanatory prose; keep the learner's path free of bureaucratic metadata, premature term boxes, and disconnected mini-articles. **The final success criterion is learner understanding, not document completeness.**
+- **Bangla-primary teaching with English technical terminology:** Explain mechanisms, cause-and-effect, and engineering reasoning in natural, technically accurate Bangla (never Romanized Bangla or awkward literal translations) while keeping original English technical terms, code, APIs, commands, and authoritative English sources—removing language friction without lowering international engineering rigor. Retain English writing and documentation practice where the curriculum calls for it.
 
 ## Study Discipline & Focus
 

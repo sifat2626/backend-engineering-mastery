@@ -29,10 +29,23 @@ Teaching materials exist to build genuine understanding—not reference manuals,
 Classify technical terms **internally during lesson design** (do not dump a terminology table onto the learner) using three tiers distinct from the official knowledge-depth levels:
 
 - **Prerequisite:** Must be understood before proceeding. If not covered in an earlier completed block or phase, weave a crisp explanation naturally into prose right where needed.
-- **Supporting:** Appears to make an example realistic while its internals belong to a later phase. Explain it in 1–2 plain-English sentences inline at first mention, note where deeper coverage comes later if helpful, and never require manipulating its internals in exercises.
+- **Supporting:** Appears to make an example realistic while its internals belong to a later phase. Explain it in 1–2 clear, accessible Bangla sentences inline at first mention, note where deeper coverage comes later if helpful, and never require manipulating its internals in exercises.
 - **Context:** Mentioned so the learner grasps its purpose and place in the broader engineering landscape without studying internal mechanics.
 
 Avoid unexplained jargon dumps, formal quotes before intuition, and glossaries that substitute for teaching.
+
+## Teaching Language Policy (Bangla-Primary + English Technical Terminology)
+
+Across all 29 phases and learning materials, use **natural, technically accurate Bangla** for explanations while preserving **original English technical terminology** so language friction is removed without sacrificing international engineering precision:
+
+- **Main explanations:** Clear, natural standard Bangla prose—never Romanized Bangla and never stiff, word-for-word literal translations.
+- **Technical terms:** Keep original English terms (e.g., `Concurrency`, `Race Condition`, `Idempotency`, `Backpressure`, `Transaction Isolation`) and explain their meaning and mechanism clearly in Bangla on first introduction. Do not treat translating a definition as teaching the underlying mechanism.
+- **Code, commands, identifiers, APIs, and configuration:** Keep strictly in English.
+- **Exercises and assessments:** Write instructions and prompts in natural Bangla with original English technical terminology.
+- **Technical diagrams and labels:** Keep English terminology on technical labels where appropriate.
+- **Authoritative books and official documentation:** Keep original English titles, authors, sections, and links; explain their concepts in Bangla.
+- **Engineering writing practice:** Retain English technical writing and documentation exercises (e.g., ADRs, RFC-style specs, design docs) wherever the curriculum requires them.
+- **Depth invariant:** Bangla explanations must preserve full mechanism-level rigor, cause-and-effect reasoning, invariants, trade-offs, and production failure modes.
 
 ## Evolving Example & Exercise Transfer Policy
 

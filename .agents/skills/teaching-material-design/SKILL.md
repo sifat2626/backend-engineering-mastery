@@ -22,7 +22,7 @@ Author lessons that genuinely **teach** through a continuous, guided intellectua
 
 Before writing prose, work out privately:
 1. **Central Question:** What single question or problem drives the entire block?
-2. **Terminology Control:** Classify every technical term you plan to use as **Prerequisite** (weave explanation seamlessly right where needed), **Supporting** (1–2 plain-English sentences inline; never test its internals), or **Context** (ecosystem purpose only). Strip unnecessary jargon.
+2. **Terminology Control:** Classify every technical term you plan to use as **Prerequisite** (weave explanation seamlessly right where needed), **Supporting** (1–2 clear, accessible Bangla sentences inline; never test its internals), or **Context** (ecosystem purpose only). Strip unnecessary jargon.
 3. **Evolving Example Choice:** Use the recurring promotional-code/commerce application where it genuinely illuminates the ideas; switch intentionally to a clearer native example wherever forcing it would feel artificial.
 4. **Section-to-Section Transitions:** For every transition, confirm: *What has the learner just understood? What question remains unanswered? Why is the next idea necessary? What prior understanding does it build on?*
 5. **Exercise Transfer Check:** Ensure every exercise requires independent transfer to a fresh context, constraint, or failure mode—never echoing a scenario already diagnosed and solved inside the lesson walkthrough.
@@ -33,13 +33,14 @@ Before writing prose, work out privately:
 - **Treat the 12-step standard in `learning-standards.md` strictly as an internal checklist, never as a 12-heading template.** The learner should feel one seamless instructor guiding them, not visible scaffolding boundaries.
 - **Discovery before naming, depth after intuition:** Situation → limitation felt → why it happens → mental model → formal name → step-by-step mechanisms, invariants, cause-and-effect, trade-offs, limitations, and production failure modes → reframing the problem → next question.
 - **Connected prose first:** Use tables or bullet lists only when a side-by-side comparison or concise grouping genuinely improves comprehension. Keep epistemic honesty natural in prose rather than using robotic tag brackets.
+- **Bangla-primary teaching with English technical terms:** Write the lesson, inline checks, exercises, and assessment prompts in natural, technically accurate Bangla (never Romanized Bangla or awkward literal translations). Keep original English technical terms (explaining each clearly in Bangla on first use), code, commands, identifiers, APIs, diagram labels where appropriate, and original English reading titles/links. Retain English writing practice where the curriculum requires it.
 - **Honor the study-time budget:** Keep guided reading, inline checks, complementary mandatory reading, exercises, and closed-book assessment squarely within the approved block hours.
 
 ## Final Read-Aloud Quality Gate
 
-Before finishing, read the entire lesson as if teaching aloud to an intelligent learner new to the subject:
+Before finishing, read the entire lesson as if teaching aloud in natural Bangla to an intelligent learner new to the subject:
 - Does it immediately pull the learner into a problem they care about?
 - Could sections be shuffled without breaking comprehension? *(If yes, the narrative spine is broken—rewrite the transitions.)*
-- Does any unexplained term or process box interrupt flow?
+- Does any unexplained English technical term, awkward literal translation, Romanized Bangla phrase, or process box interrupt flow?
 - Does it progress all the way from clear intuition to rigorous engineering mechanisms, limits, and production consequences?
 - **The final success criterion is learner understanding, not document completeness.**
