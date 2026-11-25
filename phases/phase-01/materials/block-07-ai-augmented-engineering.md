@@ -299,22 +299,29 @@ AI ব্যবহার নিয়ে developer-দের মধ্যে প্
 
 > **CRITICAL SAFETY RULE:** নিচের code-এ থাকা কোনো package নাম official `npm` registry ও documentation-এ independently verify করার আগে **কখনোই `npm install` চালাবেন না**! এখানে কোনো real malicious package ব্যবহার করা হয়নি, কিন্তু real-world slopsquatting প্রতিরক্ষার অভ্যাস হিসেবে unverified package install করা কঠোরভাবে নিষিদ্ধ।
 
-**Scenario & Code Under Audit (`issueReturnCredits.js`):**
-ধরুন, একটি AI coding assistant নিচের ~50-line Node.js + PostgreSQL module-টি generate করেছে। এর কাজ হলো: কোনো customer-এর approved return items-এর জন্য eligible store credit ইস্যু করা এবং সেই customer-এর credit history-র সাম্প্রতিক তালিকা (caller-এর পছন্দমতো sort order-এ) return করা। Specification অনুযায়ী: (1) প্রতিটি `amountCents` অবশ্যই positive integer হতে হবে; (2) একই `(orderId, reason)`-এর জন্য কখনো দুবার credit দেওয়া যাবে না; (3) `store_credits` insert ও `customer_wallets` balance update atomic হতে হবে; এবং (4) কোনো database failure চুপিসারে গোপন না করে explicit error হিসেবে caller-কে জানাতে হবে।
+**Scenario & Code Under Audit (`issueReturnCredits.mjs`):**
+ধরুন, একটি AI coding assistant নিচের ~55-line Node.js + PostgreSQL ES module-টি generate করেছে। এর কাজ হলো: কোনো customer-এর approved return items-এর জন্য eligible store credit ইস্যু করা এবং সেই customer-এর credit history-র সাম্প্রতিক তালিকা (caller-এর পছন্দমতো sort order-এ) return করা। Specification অনুযায়ী: (1) প্রতিটি `amountCents` অবশ্যই positive integer হতে হবে; (2) একই `(orderId, reason)`-এর জন্য কখনো দুবার credit দেওয়া যাবে না; (3) `store_credits` insert ও `customer_wallets` balance update atomic হতে হবে; এবং (4) কোনো database failure চুপিসারে গোপন না করে explicit error হিসেবে caller-কে জানাতে হবে।
 
 ```javascript
-// issueReturnCredits.js — AI-generated draft for independent audit
-import { withSafeTxGuard } from "pg-tx-guard-helper";
+// issueReturnCredits.mjs — AI-generated draft for independent audit
+export async function issueReturnCredits(pool, payload, deps = {}) {
+  const { userId, orderId, reason, items, expiresAt, sortBy = "created_at" } = payload;
 
-export async function issueReturnCredits(pool, payload) {
-  const {
-    userId,
-    orderId,
-    reason,
-    items,
-    expiresAt,
-    sortBy = "created_at",
-  } = payload;
+  if (
+    !Array.isArray(items) ||
+    items.length === 0 ||
+    items.some((item) => !Number.isInteger(item?.amountCents) || item.amountCents <= 0)
+  ) {
+    throw new Error("INVALID_ITEMS");
+  }
+
+  const expiresAtMs = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+    throw new Error("INVALID_EXPIRY");
+  }
+
+  const withSafeTxGuard =
+    deps.withSafeTxGuard ?? (await import("pg-tx-guard-helper")).withSafeTxGuard;
 
   try {
     const existing = await pool.query({
@@ -329,10 +336,6 @@ export async function issueReturnCredits(pool, payload) {
     }
 
     const totalCents = items.reduce((sum, item) => sum + item.amountCents, 0);
-    const todayLocal = new Date().toLocaleDateString("en-CA");
-    if (String(expiresAt).slice(0, 10) < todayLocal) {
-      throw new Error("CREDIT_EXPIRY_IN_PAST");
-    }
 
     await withSafeTxGuard(pool, async () => {
       await pool.query(
@@ -365,10 +368,18 @@ export async function issueReturnCredits(pool, payload) {
 }
 ```
 
+**Safe Local Audit & Test Setup (কোনো external package install না করেই):**
+1. একটি local scratch folder-এ ওপরের code-টি `issueReturnCredits.mjs` নামে save করুন—কোনো `npm install` চালাবেন না।
+2. প্রথমে code-এ থাকা external package ও `pg` driver options-গুলো official `npm` registry (`https://www.npmjs.com` বা read-only `npm view <package-name>`) এবং official `node-postgres` documentation-এ independently verify করুন।
+3. Built-in `node:test` + `node:assert/strict` ব্যবহার করে `issueReturnCredits.test.mjs` লিখুন এবং `node --test issueReturnCredits.test.mjs` দিয়ে চালান:
+   - **Default runtime path যাচাই করতে:** তৃতীয় argument (`deps`) ছাড়াই `issueReturnCredits(mockPool, payload)` call করে দেখুন কী ঘটে।
+   - **বাকি behavior ও edge cases safely test করতে:** কোনো unverified package install বা trust না করেই তৃতীয় argument হিসেবে একটি minimal pass-through stub `{ withSafeTxGuard: (_pool, fn) => fn() }` এবং একটি minimal in-memory mock `pool` (`{ query: async (...) => ... }`) অথবা local PostgreSQL `pg.Pool` pass করুন।
+   - **Corrected implementation verify করতে:** সব defects fix করার পর extra কোনো third-party dependency ছাড়াই (শুধু Node.js 22 built-ins ও `pg`-র documented API ব্যবহার করে) একই independent tests আবার চালিয়ে দেখান যে আগে fail করা tests এখন pass করছে।
+
 **Deliverables (`phases/phase-01/notes/block-07-notes.md`):**
 1. **Independent Line-by-Line Audit Log (`LO 7.3`, `LO 7.4`):** AI-র code-এ থাকা **চারটি ভিন্ন category-র defects** independently খুঁজে বের করুন এবং প্রতিটির জন্য লিখুন: (ক) exact line(s), (খ) কী defect এবং কেন এটি dangerous, এবং (গ) কোন official documentation বা empirical check দিয়ে আপনি এটি confirm করেছেন (`node-postgres` / `npm` / PostgreSQL 16 / Node.js 22 docs দেখে)।
-2. **Failing Test Design (`LO 7.4`):** প্রতিটা defect expose করার জন্য একটি করে **independent failing test case** design করুন (চাইলে স্থানীয়ভাবে `node --test` ও একটি minimal mock `pool` অথবা local PostgreSQL দিয়ে চালিয়ে দেখুন—যাতে fix করার আগে test-গুলো fail করে এবং fix করার পর pass করে)।
-3. **Corrected Implementation & Schema Note (`LO 7.4`):** সব কটি defect fix করে পরিষ্কার, runnable, dependency-free (শুধু `pg` ও Node.js 22 built-ins ব্যবহার করে) revised implementation লিখুন—এবং schema-তে কোনো constraint (যেমন uniqueness) যোগ করা প্রয়োজন হলে সেটিও উল্লেখ করুন।
+2. **Failing Test Design & Execution (`LO 7.4`):** প্রতিটা defect category expose করার জন্য একটি করে **independent failing test case** লিখুন এবং ওপরের safe setup অনুসরণ করে `node --test` দিয়ে চালান—যাতে fix করার আগে test-গুলো fail করে এবং fix করার পর pass করে।
+3. **Corrected Implementation & Schema Note (`LO 7.4`):** সব কটি defect fix করে পরিষ্কার, runnable, extra-dependency-free (শুধু `pg` ও Node.js 22 built-ins ব্যবহার করে) revised implementation লিখুন—এবং schema-তে কোনো constraint যোগ করা প্রয়োজন হলে সেটিও উল্লেখ করুন।
 
 **Evaluation Criteria:** আপনার audit কেবল "এটা দেখতে খারাপ" বলবে না—প্রতিটা defect-এর exact mechanism, official docs verification, reproduction/failing test, এবং clean fix (নতুন accidental complexity না বাড়িয়ে) স্পষ্টভাবে প্রমাণ করবে।
 
