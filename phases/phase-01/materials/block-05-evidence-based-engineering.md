@@ -314,7 +314,7 @@ Google SRE Ch. 15-এর আরও দুটি সমান গুরুত্�
 ```markdown
 # Incident Postmortem: Repeat-Buyer Checkout Latency Spike (Deploy #412)
 
-- **Date:** 2026-11-24 | **Duration:** 45 minutes (14:02–14:47 UTC)
+- **Date:** 2026-11-24 | **Incident Duration:** 45 minutes (14:02–14:47 UTC) | **Post-Recovery Verification:** 30 minutes (14:47–15:17 UTC)
 - **Trigger:** User-visible checkout latency degradation + monitoring gap (manual discovery via Support)
 - **Impact:** ~5% of checkout requests (repeat buyers with >=20 historical promo redemptions) experienced p95 latency of 920 ms (baseline: 80 ms) and p99 of 2.5 s. No data loss or incorrect charges occurred.
 
@@ -325,7 +325,8 @@ Google SRE Ch. 15-এর আরও দুটি সমান গুরুত্�
 - **14:24** — Two pods were restarted and PostgreSQL connection pool was increased from 10 to 50 without isolating a hypothesis; latency did not improve.
 - **14:41** — Investigation isolated `deploy #412` query via staging reproduction on realistic row counts, confirming a full table scan on `promo_redemptions`.
 - **14:46** — `deploy #412` rollback completed.
-- **14:47** — Checkout `p95` returned to `82 ms` (verified steady for 30 minutes).
+- **14:47** — Recovery achieved: checkout `p95` returned to `82 ms`, ending the 45-minute incident duration. Post-recovery observation period began.
+- **15:17** — Post-recovery verification completed: checkout `p95` remained steady near `82 ms` for 30 continuous minutes (14:47–15:17 UTC); incident formally closed.
 
 ## Contributing Factors
 1. The new filter in `deploy #412` bypassed the existing index on `promo_redemptions`, triggering full table scans for accounts with large promo histories.
@@ -334,9 +335,9 @@ Google SRE Ch. 15-এর আরও দুটি সমান গুরুত্�
 4. No incident triage checklist prompted checking recent deployments and baselines before altering runtime configuration.
 
 ## Action Items (Linked to Contributing Factors)
-1. **[Factor 1 & 2 | P1]** Seed staging with realistic anonymized promo-history volume (~100k rows) and add an automated query-plan check for modified checkout queries before merge.
-2. **[Factor 3 | P1]** Add `p95 > 150 ms` and `p99 > 500 ms` alerts to the checkout monitoring dashboard alongside mean latency.
-3. **[Factor 4 | P2]** Add a 1-page incident triage checklist (Problem Statement + check recent deploys + single-variable rollback first) to team runbooks and review it in next week's team sync.
+1. **[Factor 1 & 2 | P1 | Owner: Backend Engineer / Database Owner]** Seed staging with realistic anonymized promo-history volume (~100k rows) and add an automated query-plan check for modified checkout queries before merge. *Completion criteria:* Staging holds >=100k anonymized `promo_redemptions` rows, and CI fails any PR whose modified checkout query performs a full table scan or exceeds `150 ms` on that dataset.
+2. **[Factor 3 | P1 | Owner: Observability Owner]** Add `p95 > 150 ms` and `p99 > 500 ms` alerts to the checkout monitoring dashboard alongside mean latency. *Completion criteria:* Both tail-latency alerts are live on the checkout dashboard and verified with a staging alert-fire test triggering within 2 minutes of simulated degradation.
+3. **[Factor 4 | P2 | Owner: Backend Team Lead]** Add a 1-page incident triage checklist (Problem Statement + check recent deploys + single-variable rollback first) to team runbooks and review it in next week's team sync. *Completion criteria:* Checklist is merged into the team runbook repository, linked from the `#backend-incidents` channel topic, and walked through with all backend engineers during the next weekly sync.
 ```
 
 লক্ষ করুন: এখানে কোথাও কারও নাম ধরে আক্রমণ নেই, আবার মূল কারিগরি ত্রুটি বা টিমের পদ্ধতিগত দুর্বলতাগুলোকেও একটুও লুকানো হয়নি—প্রতিটি action item সরাসরি একটি নির্দিষ্ট প্রমাণিত কারণ বন্ধ করছে!
