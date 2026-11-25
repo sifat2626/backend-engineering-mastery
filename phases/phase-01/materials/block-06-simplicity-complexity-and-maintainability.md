@@ -159,17 +159,17 @@ Ousterhout-এর মতে, codebase ধীরে ধীরে অচল হয়
 ### Strategic Programming ("Working code যথেষ্ট নয়—Great design-ই আসল product")
 **Strategic programming**-এ একটা feature কাজ করলেই কাজ শেষ হয় না। আপনার প্রধান লক্ষ্য হলো **দীর্ঘমেয়াদে এমন একটা clean structure তৈরি ও maintain করা, যাতে future changes সহজ ও নিরাপদ থাকে।**
 - নতুন কোনো feature বা bug fix করার সময় আপনি শুধু *"এটা কীভাবে দ্রুত কাজ করাব?"* ভাবেন না—বরং ভাবেন *"এই change-টা আমাদের বিদ্যমান design-এ সবচেয়ে clean উপায়ে কোথায় বসবে? কোনো duplicate logic বা obscurity কি এখনই সরিয়ে নেওয়া যায়?"*
-- এতে শুরুতে প্রতিটি task-এ আনুমানিক **10–20% extra effort** লাগে (clean abstraction ভাবা, ভালো নাম দেওয়া, ২টা design alternative তুলনা করা, clear boundary ও tests লেখা)।
+- Ousterhout-এর recommendation অনুযায়ী, পুরো **total development time**-এর প্রায় **10–20%** ধারাবাহিকভাবে continuous design improvements-এ invest করা উচিত (যেমন clean abstraction ভাবা, ভালো নাম দেওয়া, design alternatives তুলনা করা, ছোট incremental cleanup ও clear tests লেখা)। খেয়াল রাখবেন: এটি প্রতিটি individual task-এর ওপর চাপানো কোনো fixed per-task surcharge নয়, বরং পুরো engineering workflow-জুড়ে একটি ongoing investment allocation।
 
-এই দুই mindset-এর ফলাফল সময়ের সাথে কীভাবে সম্পূর্ণ উল্টে যায়, নিচের conceptual curve-টা দেখুন:
+এই দুই mindset-এর ফলাফল সময়ের সাথে কীভাবে বদলায়, নিচের qualitative conceptual curve-টা দেখুন:
 
 ```text
 Cumulative
 Progress
    ▲                                         / Strategic Programming
-   │                                       /   (শুরুতে 10–20% ধীর,
-   │                                     /      কিন্তু speed ধরে রাখে)
-   │                                   /
+   │                                       /   (শুরুতে ongoing design
+   │                                     /      investment-এ কিছুটা ধীর,
+   │                                   /        কিন্তু speed ধরে রাখে)
    │                             ────/────── Tactical Programming
    │                       ─────/────          (শুরুতে fast, কিন্তু
    │                  ────/───                 complexity জমে flat হয়ে যায়)
@@ -181,10 +181,11 @@ Progress
    └─────────────────────────────────────────────────────────▶ Time
                   ▲
            Crossover Point
-     (সাধারণত কয়েক মাস থেকে ১ বছরের মধ্যে)
+     (Ousterhout-এর personal estimate: ~6–18 months;
+      empirically measured universal rule নয়)
 ```
 
-*(নোট: এটি Ousterhout-এর conceptual trade-off illustration—কোনো exact universal mathematical curve নয়। একদিনের throwaway script-এ strategic investment-এর crossover point কখনোই আসবে না—যা আমরা Block 1-এর proportional rigor-এ দেখেছি! কিন্তু multi-year backend service-এ crossover point খুব দ্রুতই চলে আসে।)*
+*(নোট: এটি একটি qualitative conceptual curve—কোনো empirically established industry result নয়। Ousterhout নিজেই স্পষ্টভাবে স্বীকার করেন যে কোনো universal crossover point প্রমাণ করার মতো empirical data নেই; বইয়ে তাঁর দেওয়া **6–18 months** estimate-টি কেবল তাঁর personal opinion, কোনো measured industry rule নয়। একদিনের throwaway script-এ এই crossover point কখনোই আসবে না—যা আমরা Block 1-এর proportional rigor-এ দেখেছি—কিন্তু long-lived backend service-এ continuous design investment-এর payoff সময়ের সাথে স্পষ্ট হয়ে ওঠে।)*
 
 কিন্তু এখানেই একটা মারাত্মক ফাঁদ তৈরি হয়! অনেক engineer *Strategic Programming*-এর নাম শুনে, বা "clean architecture" বানানোর উৎসাহে, একেবারে উল্টো প্রান্তে চলে যান—তাঁরা ছোট্ট একটা feature-কে ডজনখানেক ছোট ছোট class, interface আর wrapper layer-এ ভেঙে ফেলেন। **তাহলে আমরা কীভাবে চিনব কোন abstraction-টা সত্যিই complexity কমাচ্ছে, আর কোনটা উল্টো শুধু extra layer যোগ করছে?**
 
@@ -296,7 +297,7 @@ Fowler দেখিয়েছেন, **সব খারাপ code-ই "technical
 1. **Essential বনাম Accidental (Brooks):** এই complexity-টা কি আসল business domain থেকে আসছে (unavoidable), নাকি আমাদের নিজের tool, abstraction, বা messy code থেকে তৈরি হয়েছে (reducible)?
 2. **Simple বনাম Easy (Hickey):** এই solution-টা কি independent concerns-কে আলাদা (**unbraided**) রেখেছে, নাকি শুরুতে quick ও familiar হওয়ার লোভে state, business logic, ও I/O একসাথে **complect** করে ফেলেছে?
 3. **Symptoms & Root Causes (Ousterhout):** একটা ছোট change করলে কি অনেক file বদলাতে হচ্ছে (**change amplification**)? বুঝতে কি অতিরিক্ত context মাথায় রাখতে হচ্ছে (**cognitive load**)? কোনো hidden coupling বা side effect কি **unknown unknowns** তৈরি করছে—আর এর পেছনে কোন **dependencies** বা **obscurity** কাজ করছে?
-4. **Strategic & Deep vs. Tactical & Shallow (Ousterhout):** আমরা কি 10–20% strategic care নিয়ে এমন **deep modules** বানাচ্ছি যা ছোট interface-এর পেছনে আসল complexity hide করে—নাকি **tactical shortcuts** জমাচ্ছি, অথবা উল্টোদিকে **shallow wrappers / speculative generality** দিয়ে overengineering করছি?
+4. **Strategic & Deep vs. Tactical & Shallow (Ousterhout):** আমরা কি continuous strategic design investment-এর মাধ্যমে এমন **deep modules** বানাচ্ছি যা ছোট interface-এর পেছনে আসল complexity hide করে—নাকি **tactical shortcuts** জমাচ্ছি, অথবা উল্টোদিকে **shallow wrappers / speculative generality** দিয়ে overengineering করছি?
 5. **Honest Debt Classification (Fowler):** এখানে কোনো shortcut নেওয়া হলে তা কি সত্যিই **prudent & deliberate** (documented, bounded, with a repayment plan), নাকি **reckless mess**?
 
 এখন এই পুরো উপলব্ধিটাকে নিয়ে সরাসরি সামনে তাকান—আধুনিক software engineering-এর সবচেয়ে বড় পরিবর্তনের দিকে।
