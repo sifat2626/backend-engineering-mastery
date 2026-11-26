@@ -183,9 +183,7 @@ Google-এর ***The Standard of Code Review*** এই দুটি চরম �
 
 ### ২. Operational Ownership — "You Build It, You Run It" *(Awareness)*
 
-ঐতিহ্যবাহী বহু প্রতিষ্ঠানে একসময় একটি অদৃশ্য দেয়াল ছিল: developer-রা code লিখে Ops টিমের দিকে ছুঁড়ে দিতেন (*"throw it over the wall"*) এবং পরের feature-এ চলে যেতেন। ২০০৬ সালে *ACM Queue*-তে দেওয়া একটি বিখ্যাত সাক্ষাৎকারে Amazon-এর CTO **Werner Vogels** এই ভাঙা incentive-টা চোখে আঙুল দিয়ে দেখিয়ে দেন:
-
-> *"The traditional model is that you take your software to the wall that separates development and operations, and throw it over and then forget about it. Not at Amazon. **You build it, you run it.** This brings developers into contact with the day-to-day operation of their software. It also brings them into day-to-day contact with the customer."*
+ঐতিহ্যবাহী বহু প্রতিষ্ঠানে একসময় development আর operations-এর মাঝখানে একটি অদৃশ্য দেয়াল ছিল: developer-রা code লিখে আলাদা Ops টিমের হাতে ছেড়ে দিতেন এবং তারপর আর পেছনে ফিরে তাকাতেন না। ২০০৬ সালের *ACM Queue* সাক্ষাৎকার [*"A Conversation with Werner Vogels"*](https://queue.acm.org/detail.cfm?id=1142065)-এ Amazon-এর CTO **Werner Vogels** এই পুরোনো handoff মডেলের বদলে **"You build it, you run it"** নীতিটি সামনে আনেন—তাঁর মূল বক্তব্য ছিল, যে টিম একটি service তৈরি করে, তার দৈনন্দিন operation-এর দায়িত্বও সেই টিমেরই থাকা উচিত, যাতে developer-রা সরাসরি নিজেদের software-এর live আচরণ এবং বাস্তব customer অভিজ্ঞতার সংস্পর্শে থাকেন।
 
 এই ধারণার পেছনের **mechanism** খুব সহজ কিন্তু অত্যন্ত শক্তিশালী: **Feedback Loop ও Incentive Alignment**।
 - যখন code লেখার মানুষ আর production-এ রাত ৩টায় incident সামলানোর মানুষ আলাদা হয়, তখন developer-এর সামনে silent error-swallowing, cryptic error message, missing timeout, বা risky shortcut নেওয়ার তাৎক্ষণিক কোনো কষ্ট নেই—কষ্টটা ভোগ করে অন্য একটি টিম!
@@ -326,7 +324,7 @@ assert.equal(result, 850);
 
 - **Business & Architectural Continuity:** এই feature-টি আমাদের সেই বাড়তে থাকা **Node.js + PostgreSQL online store** (Blocks 1–7)-এর core promo-redemption domain logic হিসেবে তৈরি হচ্ছে, যা পরের sprint-এ store-এর PostgreSQL-backed checkout service-এ integrate হবে। তাই Stage 2-এর ADR ও Stage 4-এর production-failure analysis-এ আপনি বাস্তব Node.js + PostgreSQL backend প্রেক্ষাপট মাথায় রেখে যুক্তি দেবেন।
 - **Strictly Allowed for Stage 3 Implementation:**
-  - **Pure Node.js 22 LTS only** (ES Modules `.mjs`, **zero external `npm` dependencies**)।
+  - **Pure Node.js 22 only** (ES Modules `.mjs`, **zero external `npm` dependencies**) — continuity ও reproducibility-র জন্য Phase 1-এ Node.js 22 pinned রাখা হয়েছে *(উল্লেখ্য: November 2026 অনুযায়ী Node.js 22 হলো **Maintenance LTS** release, বর্তমান Active LTS নয়)*।
   - একটি ছোট **in-memory model** (`Map` / plain JS objects)।
   - **একটিমাত্র narrowly defined operation:** `redeemPromoCode` (এবং প্রয়োজন হলে এর pure helper function)।
   - একটি minimal test harness — শুধু Node.js 22 built-in **`node:test` + `node:assert/strict`**।
@@ -347,7 +345,7 @@ assert.equal(result, 850);
 2. **Currency Convention:** Store-এর সব monetary amount **integer minor units (`cents`)**-এ রাখা হয় (`subtotalCents`, `discountCents`, `finalTotalCents`)—কখনো floating-point dollars নয়।
 3. **Promo Definition Shape (existing catalog fields):** প্রতিটি promo object-এ আছে: `code` (string), `type` (`"PERCENT"` বা `"FIXED"`), `value` (integer — `"PERCENT"` হলে যেমন `10` মানে 10%, `"FIXED"` হলে cents-এ flat amount), `maxTotalRedemptions` (positive integer), `perUserLimit` (positive integer), `expiresAt` (ISO-8601 UTC timestamp string), এবং `isActive` (boolean)।
 4. **Caller Request Shape (checkout caller provides):** `orderId` (string), `userId` (string), `subtotalCents` (integer), `promoCode` (string), `requestedAt` (ISO-8601 UTC timestamp string), এবং optional `idempotencyKey` (string)।
-5. **Runtime & Dependency Rule:** Node.js 22 LTS (ESM `.mjs`); Stage 3-এর lab code-এ কোনো external `npm` package install করা যাবে না।
+5. **Runtime & Dependency Rule:** Node.js 22 (Maintenance LTS as of November 2026, pinned for Phase 1 continuity; ESM `.mjs`); Stage 3-এর lab code-এ কোনো external `npm` package install করা যাবে না।
 
 *(বাস্তব backend ticket-এর মতোই এখানে calculation rules, boundary conditions, duplicate/retry semantics, এবং error contract-এর অনেক গুরুত্বপূর্ণ সিদ্ধান্ত ইচ্ছাকৃতভাবেই অস্পষ্ট রাখা হয়েছে—Stage 1-এ আপনার প্রথম কাজ হলো সেগুলো নিজেই খুঁজে বের করা!)*
 
