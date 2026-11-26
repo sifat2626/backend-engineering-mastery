@@ -164,11 +164,11 @@ function sumOrderTotalsWithCopy(orders) {
 | **`N^3`** | Cubic | `10^6` | `10^9` | `10^12` | `10^15` | `10^18` | এমনকি `N = 1,000`-এই ১ বিলিয়ন ops—বড় backend data-য় ব্যবহার অযোগ্য। |
 | **`2^N`** | Exponential | `~1.27 × 10^30` | `~1.07 × 10^301` | অকল্পনীয় | অকল্পনীয় | অকল্পনীয় | `N = 50`-এই `2^50 ≈ 1.13 × 10^15`; প্রতিটি `+1` input কাজকে **দ্বিগুণ** করে দেয়! |
 
-*(সম্পূর্ণ ক্রমটি মনে রাখার জন্য: `1 < log N < sqrt(N) < N < N log N < N^2 < N^3 < 2^N < N!`)*
+*(যথেষ্ট বড় `N`-এর জন্য asymptotic growth-rate-এর ক্রম: `1 < log N < sqrt(N) < N < N log N < N^2 < N^3 < 2^N < N!` — খেয়াল রাখবেন, এটি বড় `N`-এ asymptotic growth ordering, প্রতিটি ছোট `N`-এর জন্য সর্বদা সত্য এমন numerical inequality নয়; যেমন `N = 1` হলে `log2(1) = 0 < 1` এবং `N = 2` হলে `2^2 = 4 > 2! = 2`।)*
 
 ওপরের **`N^2`** সারিটির দিকে আরেকবার তাকান। আপনার opening mystery-র পুরো উত্তর ওই একটা সারিতেই লেখা আছে!
-- `N = 100`-এ `N^2 = 10,000` ops—আধুনিক CPU-তে যা ১ millisecond-এর ভগ্নাংশে শেষ হয়ে যায়।
-- `N = 1,000,000`-এ `N` বেড়েছে `10,000×`, কিন্তু `N^2` বেড়েছে `(10,000)^2 = 100,000,000×` (দশ কোটি গুণ!) → `10^12` ops!
+- `N = 100`-এ `N^2 = 10,000` abstract operations—যা তুলনামূলকভাবে modest পরিমাণ কাজ হতে পারে, তবে Word-RAM model একাই বলতে পারে না এটি বাস্তবে ঠিক কত milliseconds নেবে (কারণ প্রতিটি operation-এর wall-clock cost hardware ও runtime-এর ওপর নির্ভরশীল)।
+- `N = 1,000,000`-এ `N` বেড়েছে `10,000×`, কিন্তু `N^2` বেড়েছে `(10,000)^2 = 100,000,000×` (দশ কোটি গুণ!) → `10^12` abstract operations!
 
 কিন্তু বাস্তব code-এর operation count তো সাধারণত পরিষ্কার `N^2` হয় না—বরং হয় `f(N) = 3N^2 + 50N + 120` বা `f(N) = 2N + 10`-এর মতো জটিল expression। এখন প্রশ্ন হলো: **এই জটিল expression-গুলোকে একটি নিখুঁত, সর্বজনীন mathematical ভাষায় বাঁধব কীভাবে?**
 
@@ -239,9 +239,9 @@ Industry-তে, blog post-এ, এমনকি অনেক senior developer-�
 2. **Asymptotic Bound (`O` / `Ω` / `Θ`):** ওই নির্দিষ্ট cost function-টির ওপর আমরা কোন গাণিতিক bound (ceiling, floor, নাকি tight sandwich) বসাচ্ছি?
 
 একটা খুব সহজ backend উদাহরণ দিয়ে পুরো বিভ্রান্তি চিরতরে দূর করুন। ধরুন একটা unsorted array-তে `N`টা order আছে, আর আমরা শুরু থেকে শেষ পর্যন্ত খুঁজে নির্দিষ্ট একটা `targetOrderId` বের করছি (linear search):
-- **Best case** (একদম প্রথম index-এই order-টা পাওয়া গেল): লাগে `1`টি comparison। এর **tight bound** হলো `Θ(1)`—যার মানে এর **Big-O upper bound-ও `O(1)`** এবং **Big-Omega lower bound-ও `Ω(1)`**! দেখলেন? Best-case-এরও Big-O আছে!
-- **Worst case** (order-টা একদম শেষে আছে অথবা array-তেই নেই): লাগে `N`টি comparison। এর **tight bound** হলো `Θ(N)`—যার মানে এর **Big-O upper bound `O(N)`** *এবং* **Big-Omega lower bound `Ω(N)`**! দেখলেন? Worst-case-এরও Big-Omega আছে!
-- **All-inputs statement:** যেকোনো input-এ linear search কমপক্ষে `1` ধাপ এবং সর্বোচ্চ `N` ধাপ নেয়—তাই সব input মিলিয়ে এর cost `Ω(1)` এবং `O(N)` (এখানে একক কোনো `Θ` নেই, কারণ best আর worst আলাদা rate-এ বাড়ে)।
+- **Best case** (একদম প্রথম index-এই order-টা পাওয়া গেল): লাগে `1`টি comparison। এই নির্দিষ্ট case-টির **tight bound** হলো `Θ(1)`—যার মানে এর **Big-O upper bound-ও `O(1)`** এবং **Big-Omega lower bound-ও `Ω(1)`**! দেখলেন? Best-case-এরও Big-O আছে!
+- **Worst case** (order-টা একদম শেষে আছে অথবা array-তেই নেই): লাগে `N`টি comparison। এই নির্দিষ্ট case-টির **tight bound** হলো `Θ(N)`—যার মানে এর **Big-O upper bound `O(N)`** *এবং* **Big-Omega lower bound `Ω(N)`**! দেখলেন? Worst-case-এরও Big-Omega আছে!
+- **Universal envelope across individual inputs:** নির্দিষ্ট কোনো input case (best/average/worst) উল্লেখ না করে যদি সব সম্ভাব্য input-এর ওপর একসাথে তাকান, তবে প্রতিটি individual input-এর cost নিচে `Ω(1)` এবং ওপরে `O(N)` দিয়ে বাঁধা—এটি কেবল সব input জুড়ে একটি **universal envelope**, কোনো case উল্লেখ না করে পুরো algorithm-এর একক tight complexity class (`Θ`) নয় (কারণ best case ও worst case ভিন্ন rate-এ বাড়ে)।
 
 আর দ্বিতীয় misconception: **Big-O কখনোই exact milliseconds বা exact execution speed নয়।** একটি `O(N)` function `1 ms`-এও চলতে পারে, আবার `500 ms`-এও চলতে পারে—এটি কেবল বলে input বড় হলে abstract operation count সর্বোচ্চ linear হারে বাড়বে।
 
