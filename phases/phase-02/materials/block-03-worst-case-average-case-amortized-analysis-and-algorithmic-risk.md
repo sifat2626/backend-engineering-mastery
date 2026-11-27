@@ -257,7 +257,7 @@ Aggregate proof-এর পাশাপাশি **Banker's (Accounting) Method**
 | **Best-Case** | সবচেয়ে অনুকূল single input | না | কেবল ভাগ্যবান input-এ |
 | **Average-Case** | Assumed input distribution | **হ্যাঁ** (input-এ) | না (skewed input-এ ভাঙতে পারে) |
 | **Expected-Case** | Algorithm-এর internal random choices (যেকোনো fixed input-এ) | **হ্যাঁ** (algorithm-এ) | **না** — এটি কেবল expectation, কোনো individual-operation বা high-probability guarantee নয় |
-| **Worst-Case** | সবচেয়ে প্রতিকূল single input/op | **না** | **হ্যাঁ** — প্রতিটি single op-এ hard upper bound |
+| **Worst-Case** | সবচেয়ে প্রতিকূল single input/op | **না** | **হ্যাঁ (modeled work-এ)** — নির্দিষ্ট size-এর প্রতিটি input/op-এর modeled algorithmic work-এ upper bound দেয় (স্বতন্ত্রভাবে wall-clock latency বা production SLA guarantee নয়) |
 | **Amortized** | যেকোনো valid sequence-এর total cost `÷ N` | **না** (100% deterministic) | **না!** Single op `O(N)` spike করতে পারে |
 
 > **Pause & Check 2** *(শেষের Self-Check Guidance দেখার আগে `phases/phase-02/notes/block-03-notes.md` ফাইলে সংক্ষেপে নিজের উত্তর লিখুন।)*
