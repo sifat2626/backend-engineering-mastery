@@ -70,17 +70,17 @@ function findOrderIndex(orders, targetId) {
                       = [N * (N + 1) / 2] / N
                       = (N + 1) / 2  =  Θ(N)
   ```
-- **আরও ভয়ংকর উদাহরণ (আমাদের opening Order Export Timeout!):** ধরুন একটি **deterministic Quicksort** সবসময় subarray-র **প্রথম element-কে pivot** হিসেবে বেছে নেয় *(Quicksort-এর full implementation ও comparison Block 4-এ; এখানে শুধু pivot বাছাইয়ের প্রভাবটুকু দেখুন)*।
-  - যদি input array-র সব `N!` permutation সমান সম্ভাব্য (uniformly random) হয়, তবে এর **average-case** সময় হয় **`Θ(N log N)`**।
-  - কিন্তু আপনার online store-এর order export-গুলো কি uniformly random? **না!** Database থেকে timestamp অনুযায়ী export করলে ওগুলো প্রায়ই **আগে থেকেই sorted** (অথবা reverse-sorted) থাকে!
-  - আগে থেকে sorted array-তে প্রতিবার প্রথম element (সবচেয়ে ছোট মান)-কে pivot ধরলে বাম পাশে থাকে `0`টি element আর ডান পাশে `N - 1`টি element! তখন recurrence দাঁড়ায় `T(N) = T(N - 1) + Θ(N)` → `(N - 1) + (N - 2) + ... + 1 = Θ(N^2)`!
+- **আরও ভয়ংকর উদাহরণ (আমাদের opening Order Export Timeout!):** ধরুন একটি প্রচলিত দুই-ভাগ (two-way) **deterministic Quicksort** সবসময় subarray-র **প্রথম element-কে pivot** হিসেবে বেছে নেয়, এবং standard textbook assumption অনুযায়ী input-এর সব **sort key স্বতন্ত্র (distinct)** *(Quicksort-এর full implementation ও comparison Block 4-এ; এখানে শুধু pivot বাছাইয়ের প্রভাবটুকু দেখুন। দ্রষ্টব্য: অনেক duplicate/equal key থাকলে naive two-way partition-এর আচরণ ভিন্ন হতে পারে—সেক্ষেত্রে three-way partitioning-এর মতো duplicate-handling দরকার হয়)*।
+  - Distinct keys-এর সব `N!` permutation সমান সম্ভাব্য (uniformly random) হলে এই deterministic Quicksort-এর **average-case** সময় হয় **`Θ(N log N)`**।
+  - কিন্তু আপনার online store-এর order export-গুলো কি uniformly random? **না!** Database থেকে timestamp অনুযায়ী export করলে distinct-timestamp order-গুলো প্রায়ই **আগে থেকেই sorted** (অথবা reverse-sorted) থাকে!
+  - আগে থেকে sorted (distinct-key) array-তে প্রতিবার প্রথম element (সবচেয়ে ছোট মান)-কে pivot ধরলে বাম পাশে থাকে `0`টি element আর ডান পাশে `N - 1`টি element! তখন recurrence দাঁড়ায় `T(N) = T(N - 1) + Θ(N)` → `(N - 1) + (N - 2) + ... + 1 = Θ(N^2)`!
 - **মূল শিক্ষা:** Average-case analysis-এর সবচেয়ে বড় দুর্বলতা হলো এর **input-distribution assumption**। বাস্তব production data প্রায় কখনোই বইয়ের মতো uniform random নয়—তা সময়ক্রমে sorted, skewed, বা malicious হতে পারে। Assumption ভাঙলেই আপনার "average-case" প্রতিশ্রুতি ভেঙে পড়ে!
 
 ### গ. Expected-Case Complexity (Randomized Algorithm-এর নিজস্ব Randomness-এর ওপর গড়)
 এবার একটি অত্যন্ত সূক্ষ্ম কিন্তু শক্তিশালী পার্থক্য দেখুন—অনেক engineer **Average-Case** আর **Expected-Case**-কে এক করে ফেলেন, অথচ দুটোর উৎস সম্পূর্ণ ভিন্ন!
 
 - **সংজ্ঞা:** Algorithm-টি যখন execution-এর ভেতরে **নিজেই random choice করে** (যেমন random number generator দিয়ে pivot বাছা বা random hash seed ব্যবহার করা), তখন **যেকোনো একটি নির্দিষ্ট (এমনকি সবচেয়ে জঘন্য বা attacker-তৈরি) input-এর ওপরও** algorithm-টির নিজের internal random choices-এর গড় cost হলো **Expected-Case Complexity**!
-- **উদাহরণ (Randomized Quicksort):** প্রতিবার প্রথম element না নিয়ে যদি algorithm-টি `[left..right]` রেঞ্জ থেকে **নিজে uniformly random একটি pivot** বেছে নেয়, তবে আপনার database থেকে আসা timestamp-sorted order export (বা কোনো attacker-এর বানানো input)-এর ওপরও এর **expected running time হলো `Θ(N log N)`**!
+- **উদাহরণ (Randomized Quicksort):** প্রতিবার প্রথম element না নিয়ে যদি algorithm-টি `[left..right]` রেঞ্জ থেকে **নিজে uniformly random একটি pivot** বেছে নেয়, তবে **distinct sort keys** (অথবা duplicate সামলানোর জন্য উপযুক্ত three-way partitioning) ধরে নিলে আপনার database থেকে আসা timestamp-sorted order export (বা কোনো attacker-এর বানানো distinct-key input)-এর ওপরও এর **expected running time হলো `Θ(N log N)`**! *(শুধু random pivot বাছাই একাই অনেক equal key-এর জন্য naive two-way partition-এর অবনতি স্বয়ংক্রিয়ভাবে সমাধান করে না।)*
 - **পার্থক্যটা চোখে আঙুল দিয়ে দেখুন:**
   - **Distributional Average-Case:** *"আমি আশা করছি user-রা আমাকে random input পাঠাবে।"* (Control আছে user/attacker-এর হাতে—ভঙ্গুর!)
   - **Randomized Expected-Case:** *"User বা attacker যে input-ই পাঠাক না কেন, আমি ভেতরে নিজের randomness ব্যবহার করে গড়ে ভালো behavior নিশ্চিত করছি।"* (Control আছে algorithm-এর হাতে—তাই কোনো প্রমাণহীন distributional average-এর চেয়ে adversarial fixed input-এর বিরুদ্ধে এটি অনেক বেশি শক্তিশালী!)
@@ -241,7 +241,7 @@ Aggregate proof-এর পাশাপাশি **Banker's (Accounting) Method**
 2. **`O(1)` Amortized ≠ Bounded Single-Request Latency!**
    - `O(1)` amortized কখনোই বলে না যে *প্রতিটি individual append* `O(1)` সময়ে শেষ হবে!
    - আমাদের doubling table-এ `#1,048,577`-তম append-এ যখন capacity `1,048,576` থেকে `2,097,152` হয়, তখন **ওই একটিমাত্র operation-এর worst-case cost হলো `Θ(N)`** (`1,048,576` element copy)!
-   - এখন আমাদের opening **Checkout Tail-Latency Spike**-এর কথা ভাবুন: আগের `524,287` জন customer-এর checkout request microsecond-এ বের হয়ে গেল, কিন্তু ঠিক যেই customer-এর request-এ buffer capacity পূর্ণ হয়ে দ্বিগুণ হলো, সেই **একটি live latency-sensitive request**-কে পুরো `O(N)` copy-র pause নিজের কাঁধে নিতে হলো!
+   - এখন আমাদের opening **Checkout Tail-Latency Spike**-এর কথা ভাবুন: আগের `1,048,576`টি append buffer-টি পূর্ণ করার পর ঠিক যেই পরবর্তী (`#1,048,577`-তম) checkout request-এ capacity দ্বিগুণ (`1,048,576 → 2,097,152`) হলো, সেই **একটি live latency-sensitive request**-কে পুরো `O(N)` copy-র pause নিজের কাঁধে নিতে হলো!
    - *(দ্রষ্টব্য: Large array resize-এর সময় memory allocation এবং পরবর্তীতে garbage collection-ও যোগ হতে পারে—তবে GC pause mechanics Phases 5 ও 11-এ, এবং p99 latency measurement Block 7 ও Phase 20-এ আসবে।)*
 
 অর্থাৎ সহজ নিয়ম:
@@ -512,7 +512,7 @@ Block 3-এ আপনি জটিল backend performance reasoning-এর এ�
 
 1. **Scenario 1 — Untrusted HTTP Query Parameters in a Naive Hash Table:** একটি internal proxy service untrusted HTTP query parameters store করার জন্য একটি custom, non-randomized separate-chaining hash table ব্যবহার করে (যা প্রতিটি insert-এর আগে duplicate key যাচাই করতে bucket chain scan করে)। Developer দাবি করছেন: *"Hash table তো `O(1)`, তাই query parameters যত বড়ই হোক CPU safe!"* *(আপনার উত্তরে স্পষ্টভাবে দেখান কেন এই abstract/historical collision mechanism-কে সরাসরি আধুনিক runtime-managed JavaScript `Map`/`Set`-এর সাথে এক করে ফেলা ভুল।)*
 2. **Scenario 2 — Checkout Buffer Doubling at `1,048,576` Items:** একটি latency-critical checkout service প্রতিটি order event-কে একটি shared in-memory dynamic buffer-এ append করে। Capacity `1,048,576` পূর্ণ হতেই একটি live checkout request-এর ভেতর buffer দ্বিগুণ (`2,097,152`) হয়। টিম অবাক হয়ে বলছে: *"আমরা তো `O(1)` amortized buffer ব্যবহার করেছি—তাহলে checkout request-এ হঠাৎ latency spike এল কেন?"*
-3. **Scenario 3 — First-Pivot Deterministic Quicksort on Order Exports:** আমাদের reporting worker প্রতিদিন database থেকে `createdAt` timestamp অনুযায়ী sorted order exports এনে custom deterministic Quicksort (যা সবসময় প্রথম element-কে pivot নেয়) দিয়ে পুনরায় সাজায়। PR-এ লেখা ছিল: *"Quicksort average-case `O(N log N)`, তাই `200,000` rows নিয়ে কোনো চিন্তা নেই।"*
+3. **Scenario 3 — First-Pivot Deterministic Quicksort on Order Exports:** আমাদের reporting worker প্রতিদিন database থেকে distinct `createdAt` timestamp অনুযায়ী আগে থেকেই sorted order exports এনে custom deterministic two-way Quicksort (যা সবসময় প্রথম element-কে pivot নেয়) দিয়ে পুনরায় সাজায়। PR-এ লেখা ছিল: *"Quicksort average-case `O(N log N)`, তাই `200,000` rows নিয়ে কোনো চিন্তা নেই।"*
 4. **Scenario 4 — Confusing Amortized with Average-Case:** Design review-এ একজন engineer মন্তব্য করলেন: *"আমাদের data structure-টির operation `O(1)` amortized—এর মানে হলো random inputs দিলে average-এ প্রতিটা operation `O(1)` সময়ে শেষ হয়, আর কোনো request কখনোই `O(N)` সময় নেবে না।"* *(এই একটি বাক্যের ভেতর লুকানো সব কয়টি আলাদা reasoning error শনাক্ত করে সঠিকভাবে rewrite করুন।)*
 
 ---
