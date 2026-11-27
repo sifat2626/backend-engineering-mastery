@@ -89,14 +89,17 @@ function findOrderIndex(orders, targetId) {
 ### ঘ. Worst-Case Complexity (সবচেয়ে প্রতিকূল input-এর সর্বোচ্চ সীমা)
 - **সংজ্ঞা:** Size `N`-এর **যেকোনো** বৈধ input-এর জন্য algorithm সর্বোচ্চ যে কাজ করতে পারে।
 - **উদাহরণ:** `findOrderIndex`-এ `targetId` array-তে না থাকলে পুরো `N`টি element scan করতে হয় → **Worst-case tight bound = `Θ(N)`**। Deterministic first-pivot Quicksort-এ sorted input-এ **Worst-case = `Θ(N^2)`**।
-- **Backend SLA/SLO-তে এর গুরুত্ব:** Production backend-এ service level agreement (SLA) বা reliability target (SLO) রক্ষা করতে গেলে আপনাকে **কোনো input-ই যেন service-কে অচল করতে না পারে** সেই ঝুঁকি নিয়ন্ত্রণ করতে হয়। তাই কঠোর per-request সীমানার জন্য engineers **Worst-case bounds**-এর ওপর ভরসা করেন—অথবা যেখানে আলাদা tail analysis দিয়ে প্রমাণিত **defensible high-probability bounds** আছে, সেগুলোর ওপর (শুধু best-case, অপ্রমাণিত distributional average, কিংবা কেবল expectation-কে hard per-run latency bound ধরে নয়!)।
+- **Backend SLA/SLO-তে এর ভূমিকা ও সীমা:** Worst-case analysis একটি নির্দিষ্ট input size `N`-এর সব বৈধ input-এর জন্য **modeled algorithmic work-এর ওপর upper bound** দেয়—তাই adversarial input-এর বিরুদ্ধে এই চারটি case category-র মধ্যে এটিই সবচেয়ে শক্তিশালী। তবে একটি অত্যন্ত জরুরি পার্থক্য মনে রাখবেন: **কেবল একটি asymptotic worst-case bound একাই কখনো wall-clock SLA বা real-time deadline guarantee করে না!**
+  - বাস্তব production latency guarantee-র জন্য algorithmic work bound-এর পাশাপাশি আরও দরকার হয় **bounded input size / workload**, **practical constant factors**, এবং **resource/environment assumptions** (CPU, memory, I/O, ও runtime overhead)।
+  - তাছাড়া কোনো algorithm-এর worst-case জানা থাকলেই তা নিরাপদ হয়ে যায় না—যেমন একটি worst-case **`Θ(N^2)`** algorithm-এর exact worst-case জানা সত্ত্বেও বড় বা unbounded input-এ তা operationally unsafe!
+  - তাই algorithmic ঝুঁকি নিয়ন্ত্রণে engineers **acceptable worst-case work bounds** (bounded input ও বাস্তব system constraints-সহ) অথবা আলাদা tail analysis দিয়ে প্রমাণিত **defensible high-probability bounds**-এর ওপর ভরসা করেন—কখনোই best-case, অপ্রমাণিত distributional average, কিংবা কেবল expectation-কে hard per-run latency bound ধরে নয়।
 
-| Case Category | কিসের ওপর গড় বা সীমা নেওয়া হয়? | Input-এর ওপর assumption লাগে? | Backend Reliability / SLA-র জন্য ভরসাযোগ্য? |
+| Case Category | কিসের ওপর গড় বা সীমা নেওয়া হয়? | Input-এর ওপর assumption লাগে? | Algorithmic Risk ও Backend SLA-র জন্য ভূমিকা |
 | :--- | :--- | :---: | :--- |
-| **Best-Case** | সবচেয়ে অনুকূল single input | হ্যাঁ (চরম ভাগ্যবান input) | **না** — production-এ প্রায় মূল্যহীন। |
-| **Average-Case** *(Distributional)* | সব input-এর ওপর assumed probability distribution | **হ্যাঁ** (fragile — data skewed/sorted হতে পারে) | **সাবধান!** কেবল বাস্তব input distribution প্রমাণিত ও non-adversarial হলে। |
+| **Best-Case** | সবচেয়ে অনুকূল single input | হ্যাঁ (চরম ভাগ্যবান input) | **মূল্যহীন** — production reliability-র ভিত্তি হতে পারে না। |
+| **Average-Case** *(Distributional)* | সব input-এর ওপর assumed probability distribution | **হ্যাঁ** (fragile — data skewed/sorted হতে পারে) | **ভঙ্গুর!** কেবল বাস্তব input distribution প্রমাণিত ও non-adversarial হলে প্রযোজ্য। |
 | **Expected-Case** *(Randomized)* | যেকোনো fixed input-এর জন্য algorithm-এর নিজস্ব random choices | **না** (যেকোনো fixed input-এ প্রযোজ্য) | **কেবল expectation!** Unjustified average-এর চেয়ে শক্তিশালী, কিন্তু hard per-run বা high-probability tail guarantee নয় (তাতে আলাদা tail analysis লাগে)। |
-| **Worst-Case** | size `N`-এর সবচেয়ে প্রতিকূল input | **না** (সর্বজনীন upper envelope) | **হ্যাঁ** — hardest per-run guarantee, adversarial input-এও নিরাপদ। |
+| **Worst-Case** | size `N`-এর সবচেয়ে প্রতিকূল input | **না** (সর্বজনীন upper envelope) | **সবচেয়ে শক্তিশালী modeled work bound** (adversarial input-এও প্রযোজ্য)—তবে একাই wall-clock SLA দেয় না; acceptable growth class, bounded input size, constants ও environment assumptions আলাদাভাবে নিশ্চিত করতে হয়। |
 
 > **Pause & Check 1** *(শেষের Self-Check Guidance দেখার আগে `phases/phase-02/notes/block-03-notes.md` ফাইলে সংক্ষেপে নিজের উত্তর লিখুন।)*
 > একটি logistics backend-এ দুটি sorting approach তুলনা করা হচ্ছে:
