@@ -22,14 +22,14 @@ Block 3-এ আপনি শিখেছেন একই algorithm কীভা�
 
 1. **Promo Validation:** প্রতি মিনিটে লাখ লাখ checkout-এ exact `promoCode` দিয়ে discount rule খুঁজে বের করা।
 2. **Catalog Price Filter:** *"দাম `USD 10` থেকে `USD 25`-এর মধ্যে থাকা সব product দাম অনুযায়ী সাজিয়ে দেখাও"*—এবং মাঝে মাঝে নতুন product-ও যোগ হবে।
-3. **Streaming VIP Leaderboard:** `2,000,000` order-এর stream থেকে কেবল **সর্বোচ্চ খরচ করা Top-10 customer** ধরে রাখা—সব `2,000,000` record একসাথে sorted রেখে RAM না ফুরিয়ে।
+3. **VIP Leaderboard from Order Stream:** `2,000,000` order record-এর stream (যেখানে একই customer-এর একাধিক order থাকতে পারে) থেকে প্রতি customer-এর মোট খরচ হিসাব করে **সর্বোচ্চ মোট খরচ করা Top-10 customer** বের করা—পুরো `2,000,000` order বা সব unique customer-কে sort না করে।
 4. **Order Export Ordering:** Order export-কে `status` অনুযায়ী সাজানো, কিন্তু একই `status`-এর ভেতর আগে থেকে থাকা `createdAt` chronological ক্রম অটুট রাখা।
 5. **Sequential Line-Item Processing:** একটি order-এর সব item একে একে append করা এবং দ্রুত iterate করা।
 
 একটু থেমে দেখুন: **একই একটিমাত্র data structure দিয়ে কি এই পাঁচটি কাজই efficiently করা সম্ভব?**
 - সবকিছু plain array-তে রাখলে exact lookup ও range update ধীর হয়ে যাবে (`O(N)`)।
-- সবকিছু hash table (`Map`/`Set`)-এ রাখলে exact lookup ঝড়ের গতিতে চলবে, কিন্তু `USD 10`–`USD 25` range query বা Top-10 বের করতে পুরো table scan করতে হবে!
-- সবকিছু প্রতিবার sort করে রাখলে `O(N log N)` CPU ও `O(N)` memory নষ্ট হবে যখন আমাদের দরকার ছিল মাত্র Top-10!
+- সবকিছু hash table (`Map`/`Set`)-এ রাখলে exact lookup ও per-customer aggregation দ্রুত চলবে, কিন্তু `USD 10`–`USD 25` range query বা Top-10 বাছাই শুধু hash table দিয়ে efficiently হবে না!
+- সবকিছু প্রতিবার sort করে রাখলে `O(N log N)` বা `O(U log U)` sorting কাজ ও বাড়তি memory নষ্ট হবে যখন আমাদের দরকার ছিল মাত্র Top-10!
 
 এটাই Block 4-এর কেন্দ্রীয় engineering প্রশ্ন:
 
@@ -233,12 +233,12 @@ Balanced Search Tree on the same 5 keys (height h = O(log N)):
 
 *(**`Awareness` Only — Ecosystem Bridge:** মেমোরিতে balanced binary search tree হিসেবে **AVL Trees** এবং **Red-Black Trees** ব্যবহৃত হয়, আর disk/SSD-ভিত্তিক database engine (যেমন PostgreSQL)-এ প্রতিটি node-এ বহু key রেখে tree height অত্যন্ত ছোট রাখার জন্য **B-Trees / B+Trees** ব্যবহৃত হয়! এদের manual rotation proofs বা PostgreSQL B-Tree page mechanics এই block-এর বাইরে—B-Tree storage ও index plans আমরা Phase 10-এ গভীরভাবে পড়ব।)*
 
-এবার আমাদের ৩ নম্বর feature request-টার দিকে তাকান: **Streaming VIP Leaderboard (`2,000,000` order থেকে কেবল Top-10 customer)**!
-এখানে আমাদের পুরো `2,000,000` customer-এর arbitrary range query বা পুরো sorted order দরকার নেই—দরকার কেবল প্রতি মুহূর্তে **সবচেয়ে ছোট বা সবচেয়ে বড় একটিমাত্র element (`min` বা `max`)** দেখা ও বদলানো! এর জন্য কি পুরো balanced search tree-র জটিলতা ও pointer overhead লাগবে? **না!** এখানেই আসে একটি অসাধারণ, pointer-মুক্ত data structure: **Binary Heap**!
+এবার আমাদের ৩ নম্বর feature request-টার দিকে তাকান: **VIP Leaderboard (`2,000,000` order record-এর stream থেকে সর্বোচ্চ মোট খরচ করা Top-10 customer)**!
+খেয়াল করুন: একই customer-এর একাধিক order stream-এর ভিন্ন ভিন্ন জায়গায় আসতে পারে, তাই প্রতিটি customer-এর exact total spend বের করতে আগে একটি `Map` দিয়ে `U` জন unique customer-এর মোট খরচ aggregate করতেই হবে। কিন্তু তারপর সেই `U` জন customer-কে পুরো sort না করে বা balanced search tree-র pointer overhead না নিয়ে আমাদের দরকার কেবল **সর্বোচ্চ `K = 10` জনকে বেছে নেওয়া**—অর্থাৎ প্রতি মুহূর্তে বর্তমান Top-`K`-এর **সবচেয়ে ছোট মান (`min`)** দেখা ও বদলানো! এখানেই আসে একটি অসাধারণ, pointer-মুক্ত data structure: **Binary Heap**!
 
 ---
 
-## ৪. Binary Heaps ও Priority Queues: Pointer ছাড়া `O(log N)` এবং `O(N log K)` Top-K
+## ৪. Binary Heaps ও Priority Queues: Implicit Array Layout ও Top-K Selection
 
 একটি **Priority Queue** হলো এমন একটি abstract interface যেখানে যেকোনো সময় নতুন item যোগ করা (`push` / `insert`) যায়, কিন্তু বের করার সময় (`pop` / `extractMin` বা `extractMax`) সবসময় সর্বোচ্চ priority (যেমন সবচেয়ে ছোট `runAt` timestamp বা সবচেয়ে কম spend)-এর item-টি আগে বের হয়।
 
@@ -265,20 +265,30 @@ Min-Heap Tree View:                 Implicit 0-Based Array View:
 
 *(নিজেই ছবিটার সাথে মিলিয়ে নিন: index `1` (`15`)-এর `left = 3` (`30`), `right = 4` (`40`), `parent = 0` (`10`)!)*
 
-### Heap Operations কীভাবে `O(1)` ও `O(log N)` সময়ে চলে?
+### Heap Operations কীভাবে `O(1)` ও `O(log M)` সময়ে চলে? (`M` = বর্তমান heap size)
 - **`peek()` → `Θ(1)`:** শুধু `heap[0]` return করুন!
-- **`push(item)` → `O(log N)`:** নতুন item-কে array-র একদম শেষে বসিয়ে দিন (shape invariant অটুট থাকল), তারপর যতক্ষণ সে তার `parent`-এর চেয়ে ছোট, ততক্ষণ `parent`-এর সাথে swap করে ওপরে তুলুন (**bubble-up / sift-up**)। সর্বোচ্চ tree height `floor(log2 N)` ধাপ! *(Underlying dynamic array grow হলে rare resize বাদে `O(log N)`।)*
-- **`popMin()` → `O(log N)`:** `heap[0]` (সর্বনিম্ন মান) সংরক্ষণ করুন, array-র একদম শেষের item-টিকে `heap[0]`-এ এনে array length `1` কমান, তারপর যতক্ষণ সে তার ছোট child-এর চেয়ে বড়, ততক্ষণ সেই ছোট child-এর সাথে swap করে নিচে নামান (**bubble-down / sift-down**)। সর্বোচ্চ `floor(log2 N)` ধাপ!
+- **`push(item)` → `O(log M)` amortized *(size-`K` heap-এ `O(log K)` amortized)*:** এখানে **দুটি আলাদা cost** পরিষ্কারভাবে পৃথক রাখুন—
+  1. **Backing-array append ও resize cost (Block 3):** নতুন item-কে underlying dynamic array-র শেষে বসাতে geometric growth policy-তে খরচ `O(1)` amortized, কিন্তু যেই একটিমাত্র `push()`-এ backing array capacity দ্বিগুণ করতে হয়, সেই **individual resize-এ `O(M)`** (size-`K` heap-এ **`O(K)`**) element copy হতে পারে!
+  2. **Heap sift-up cost:** শেষে বসানোর পর যতক্ষণ item-টি তার `parent`-এর চেয়ে ছোট, ততক্ষণ `parent`-এর সাথে swap করে ওপরে তোলা (**bubble-up / sift-up**) নেয় সর্বোচ্চ tree height `floor(log2 M)` = **`O(log M)` worst-case** (size-`K` heap-এ **`O(log K)`**)।
+  - দুটি মিলিয়ে `MinHeap.push()`-এর cost হলো **`O(log M)` amortized** (`O(log K)` amortized), কিন্তু rare backing-array resize ঘটলে একটি single `push()`-এর খরচ `O(M)` (`O(K)`) হতে পারে!
+- **`popMin()` → `O(log M)` *(size-`K` heap-এ `O(log K)`)*:** `heap[0]` (সর্বনিম্ন মান) সংরক্ষণ করুন, array-র একদম শেষের item-টিকে `heap[0]`-এ এনে array length `1` কমান, তারপর যতক্ষণ সে তার ছোট child-এর চেয়ে বড়, ততক্ষণ সেই ছোট child-এর সাথে swap করে নিচে নামান (**bubble-down / sift-down**)। সর্বোচ্চ `floor(log2 M)` ধাপ! *(যদি backing array shrinking hysteresis সহ shrink করে, তবে তাও amortized `O(log M)` থাকে।)*
 
-### বাস্তব Node.js প্রয়োগ: `O(N log K)` Streaming Top-K (কেন Top-K Largest-এ **Min-Heap**?)
+### বাস্তব Node.js প্রয়োগ: Order Stream Aggregation + Min-Heap Top-K — Expected `O(N + U log K)` Time ও `O(U + K)` Space
 
-অনেকে প্রথমবার অবাক হন: *"সর্বোচ্চ `K` জন VIP customer বের করতে **Max-Heap** না নিয়ে **Min-Heap** কেন নিচ্ছি?!"*
-লজিকটা দেখুন—দারুণ চতুর:
-- আমরা heap-এর সাইজ কখনো **`K`-এর বড় হতে দেব না**।
-- `K`-সাইজের একটি **Min-Heap**-এর `root` (`heap[0]`)-এ বসে থাকে আমাদের বর্তমান Top-`K` তালিকার **সবচেয়ে দুর্বল সদস্যটি (cutoff threshold)**!
-- নতুন কোনো customer এলে:
-  - যদি তার spend `<= heap[0]` হয় → সে বর্তমান Top-`K`-এর সবচেয়ে দুর্বল সদস্যকেও হারাতে পারল না! **`O(1)` সময়ে সরাসরি বাতিল!**
-  - যদি তার spend `> heap[0]` হয় → সে Top-`K`-এ ঢোকার যোগ্য! `root`-কে সরিয়ে তাকে ঢুকিয়ে `sift-down` করে নিই → মাত্র **`O(log K)`**!
+এবার আমাদের ৩ নম্বর feature request-টা সঠিকভাবে solve করি—**`N`টি order record-এর stream (`{ orderId, customerId, amountCents }`) থেকে সর্বোচ্চ মোট খরচ করা Top-`K` customer বের করা**, যেখানে একই `customerId`-এর একাধিক order stream-এর যেকোনো জায়গায় থাকতে পারে!
+
+প্রথমেই একটি অত্যন্ত জরুরি engineering সত্য পরিষ্কার করে নিন:
+- **তিনটি আলাদা variable:** **`N`** = মোট order records, **`U`** = unique customers (`U <= N`), **`K`** = চাওয়া Top-`K` সংখ্যা।
+- **Stage 1 — Exact Aggregation (`Map`):** একই customer-এর ১ম order stream-এর শুরুতে আর ২য় order একদম শেষে থাকতে পারে। তাই arbitrary order stream-এ প্রতিটি customer-এর **exact total spend** হিসাব করতে হলে সব `U` জন unique customer-এর running total একটি `Map`-এ রাখতেই হবে! Conventional hash-table model-এ এর খরচ: **`O(N)` expected time** এবং **`Θ(U)` auxiliary space**। *(অর্থাৎ arbitrary order stream-এ exact aggregation কখনোই `O(K)` total space-এ সম্ভব নয়!)*
+- **Stage 2 — Size-`K` Min-Heap দিয়ে Top-`K` বাছাই (কেন **Min-Heap**, Max-Heap নয়?):** এবার `Map`-এ থাকা `U` জন unique customer-এর aggregated totals-এর ওপর সর্বোচ্চ `K` সাইজের একটি **Min-Heap** চালাই:
+  - `K`-সাইজের **Min-Heap**-এর `root` (`heap[0]`)-এ বসে থাকে বর্তমান Top-`K` তালিকার **সবচেয়ে দুর্বল সদস্যটি (cutoff threshold)**!
+  - `U` জন customer-এর প্রতিটি aggregated total দেখে:
+    - যদি `totalCents <= heap[0]` হয় → সে বর্তমান Top-`K`-এর সবচেয়ে দুর্বল সদস্যকেও হারাতে পারল না! **`O(1)` সময়ে সরাসরি বাতিল!**
+    - যদি `totalCents > heap[0]` হয় → সে Top-`K`-এ ঢোকার যোগ্য! `popMin()` করে `push()` করি → heap sift-down/sift-up খরচ **`O(log K)`** *(আর geometric growth-এ `push()`-এর amortized cost **`O(log K)`**, যদিও initial growth-এ rare backing-array resize এককভাবে `O(K)` হতে পারে)*!
+  - Stage 2-এর মোট সময়: **`O(U log K)`** *(for `K >= 2`; `O(U)` for `K = 1`)* এবং heap-এর auxiliary space: **`O(K)`** (বাস্তবে `O(min(U, K))`)।
+- **দুই Stage মিলিয়ে মোট Complexity (Conventional Hash-Table Model):**
+  - **Total Time:** **`O(N + U log K)` expected** *(for `K >= 2`; `O(N + U)` for `K = 1`)*।
+  - **Total Auxiliary Space:** **`O(U + K)`** (`Θ(U)` aggregation `Map` + `O(K)` Min-Heap)।
 
 নিচের self-contained, runnable Node.js implementation-টি দেখুন:
 
@@ -297,6 +307,8 @@ class MinHeap {
     return this.items.length === 0 ? undefined : this.items[0];
   }
 
+  // Amortized O(log M) with geometric backing-array growth (sift-up is O(log M);
+  // an individual backing-array resize can cost O(M)).
   push(value) {
     this.items.push(value);
     this._siftUp(this.items.length - 1);
@@ -344,22 +356,33 @@ class MinHeap {
   }
 }
 
-// Top-K highest spenders from N streaming records:
-// Time: O(N log K) upper bound for K >= 2 (O(N) for K = 1), Auxiliary Space: O(K)
-function topKCustomersBySpend(customerStream, k) {
+// Top-K highest total-spend customers from N order records across U unique customers:
+// Conventional hash-table model:
+//   Stage 1 (Map aggregation): O(N) expected time, Θ(U) auxiliary space
+//   Stage 2 (Size-K MinHeap):  O(U log K) time for K >= 2 (O(U) for K = 1), O(min(U, K)) heap space
+//   Total: O(N + U log K) expected time (O(N + U) for K = 1), O(U + K) auxiliary space
+function topKCustomersBySpend(orderStream, k) {
   if (k <= 0) return [];
-  const minHeap = new MinHeap((a, b) => a.totalCents - b.totalCents);
 
-  for (const record of customerStream) {
+  // Stage 1: Aggregate total spend per unique customerId
+  const totalsByCustomer = new Map();
+  for (const order of orderStream) {
+    const prev = totalsByCustomer.get(order.customerId) ?? 0;
+    totalsByCustomer.set(order.customerId, prev + order.amountCents);
+  }
+
+  // Stage 2: Maintain a size-K Min-Heap over the U aggregated customer totals
+  const minHeap = new MinHeap((a, b) => a.totalCents - b.totalCents);
+  for (const [customerId, totalCents] of totalsByCustomer.entries()) {
     if (minHeap.size < k) {
-      minHeap.push(record);
-    } else if (record.totalCents > minHeap.peek().totalCents) {
+      minHeap.push({ customerId, totalCents });
+    } else if (totalCents > minHeap.peek().totalCents) {
       minHeap.popMin();
-      minHeap.push(record);
+      minHeap.push({ customerId, totalCents });
     }
   }
 
-  // Extract K winners (highest first): O(K log K)
+  // Extract up to K winners in descending order of totalCents: O(min(U, K) log K)
   const winners = [];
   while (minHeap.size > 0) {
     winners.push(minHeap.popMin());
@@ -368,11 +391,12 @@ function topKCustomersBySpend(customerStream, k) {
 }
 ```
 
-### কখন Heap-ভিত্তিক Top-K (`O(N log K)`) পুরো Sorting (`O(N log N)`)-কে হারিয়ে দেয়?
-- **`K << N` হলে (যেমন `N = 2,000,000`, `K = 10`):**
-  - **Full Sort:** `O(N log N)` time (`~2,000,000 × 21`), এবং পুরো `2,000,000` record একসাথে RAM-এ ধরে রাখতে **`Θ(N)` space**!
-  - **Min-Heap Top-K:** `O(N log K)` worst-case time (`log2(10) ≈ 3.3`—অনেক কম কাজ; এমনকি অনেক বাস্তব unordered stream-এ অধিকাংশ item `peek()`-এ `O(1)`-এই বাদ পড়ে, আর worst-case ascending stream-এও প্রতি item-এ সর্বোচ্চ `O(log K)` লাগে!), আর RAM-এ একসাথে থাকে মাত্র **`K = 10`টি record (`O(K)` space)**—ফলে বিশাল streaming dataset-এও OOM হওয়ার ভয় থাকে না!
-- **কিন্তু `K ≈ N` হলে (যেমন Top-80% লাগলে):** `log K ≈ log N` এবং `O(K) = O(N)` হয়ে যায়—তখন heap-এর কোনো asymptotic সুবিধা থাকে না, বরং একবারে sort করাই সরল ও পরিষ্কার।
+### কখন Heap-ভিত্তিক Top-K (`O(N + U log K)`) পুরো Aggregate-and-Sort (`O(N + U log U)`)-কে হারিয়ে দেয়?
+- **`K << U` হলে (যেমন `N = 2,000,000` orders, `U = 500,000` unique customers, `K = 10`):**
+  - **Full Aggregate + Sort:** `Map` তৈরির (`O(N)` expected, `Θ(U)` space) পর সব `U` জন customer-কে array-তে নিয়ে পুরো sort করতে লাগে **`O(U log U)`** (`log2(500,000) ≈ 19`) ও আলাদা `Θ(U)` sorted array! আর যদি সব `N = 2,000,000` order record-ই আগে RAM-এ জমিয়ে sort করা হতো, তবে `Θ(N)` space ও `O(N log N)` time লাগত!
+  - **Aggregate + Size-`K` Min-Heap:** Aggregation-এর (`O(N)` expected, `Θ(U)` space) পর selection-এ লাগে মাত্র **`O(U log K)`** (`log2(10) ≈ 3.3`—অনেক unordered stream-এ বেশিরভাগ customer `peek()`-এ `O(1)`-এই বাদ পড়ে, আর worst-case ascending totals-এও প্রতি customer-এ সর্বোচ্চ `O(log K)`!) এবং selection buffer-এ থাকে মাত্র **`O(K)`** (মোট auxiliary space **`O(U + K)`**, `O(N)` raw orders জমাতে হয় না)!
+  - *(বিশেষ ক্ষেত্র: যদি stream-টি আগে থেকেই **pre-aggregated** থাকত—অর্থাৎ প্রতি customer-এর কেবল ১টিই record (`U = N`), কিংবা প্রশ্নটা হতো "Top-K সবচেয়ে বড় single orders"—তবে কোনো `Map` লাগত না, এবং শুধু Min-Heap-ই `O(N log K)` time ও `O(K)` total auxiliary space-এ কাজটা করত!)*
+- **কিন্তু `K ≈ U` হলে (যেমন Top-80% customer লাগলে):** `log K ≈ log U` এবং `O(K) = O(U)` হয়ে যায়—তখন heap-এর কোনো asymptotic সুবিধা থাকে না, বরং `U`টি aggregated total একবারে sort করাই সরল ও পরিষ্কার।
 
 > **Pause & Check 2** *(শেষের Self-Check Guidance দেখার আগে `phases/phase-02/notes/block-04-notes.md` ফাইলে সংক্ষেপে নিজের উত্তর লিখুন।)*
 > 1. একটি invoicing service ক্রমবর্ধমান (monotonically increasing) `invoiceId` (`1001, 1002, 1003, ...`) একটি **unbalanced** Binary Search Tree-তে insert করছে। Insert ও lookup-এর সময় complexity কীভাবে ভেঙে পড়বে, আর একটি **balanced search tree** কোন structural invariant বজায় রেখে উভয়ই `O(log N)` রাখে?
@@ -420,9 +444,10 @@ Block 2 ও Block 3 থেকে আমরা এদের recurrence আগে�
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Insertion Sort** | `Θ(N)` *(already sorted)* | `Θ(N^2)` *(random)* | `Θ(N^2)` *(reverse)* | **`Θ(1)`** *(in-place)* | **হ্যাঁ** | বড় unsorted data-তে অচল; **tiny বা nearly sorted** partition-এ দারুণ। |
 | **Merge Sort** | `Θ(N log N)` | `Θ(N log N)` | **`Θ(N log N)`** *(deterministic!)* | **`Θ(N)`** *(merge buffer + `Θ(log N)` stack)* | **হ্যাঁ** | Adversarial input-এও `Θ(N log N)` ও stability নিশ্চিত, কিন্তু `Θ(N)` extra RAM চায়। |
-| **Randomized Quicksort** *(distinct keys বা 3-way partition সহ)* | `Θ(N log N)` | **`Θ(N log N)` expected** *(internal randomness)* | `Θ(N^2)` *(rare pathological pivots)* | **`O(log N)` expected** / `O(N)` worst *(call stack; in-place array)* | **সাধারণত না** | `Θ(N)` extra buffer ছাড়াই in-place ও cache-friendly; তবে সাধারণ সংস্করণ unstable এবং Block 3-এর নিয়মমতো কেবল expectation একাই hard per-run bound নয়। |
+| **Randomized Quicksort** *(2-way, distinct keys)* | `Θ(N log N)` | **`Θ(N log N)` expected** *(internal randomness)* | `Θ(N^2)` *(rare pathological pivots)* | **`O(log N)` expected** / `O(N)` worst *(call stack; in-place array)* | **সাধারণত না** | Distinct-key model-এ `Θ(N)` merge buffer ছাড়াই in-place; তবে অনেক equal key-এ naive 2-way partition অবনতি ঘটাতে পারে, এবং Block 3-এর নিয়মমতো কেবল expectation একাই hard per-run bound নয়। |
+| **Randomized Quicksort** *(3-way partition, duplicates)* | **`Θ(N)`** *(সব key সমান হলে!)* | **`O(N log N)` expected** *(অনেক duplicate-এ আরও দ্রুত)* | `Θ(N^2)` *(rare pathological pivots)* | **`O(log N)` expected** / `O(N)` worst *(call stack; in-place array)* | **সাধারণত না** | `< pivot`, `= pivot`, `> pivot` তিন ভাগে ভাগ করায় all-equal input এক pass-এ (`Θ(N)`) শেষ হয়; duplicate-ভারী backend data-তে 2-way-র চেয়ে নিরাপদ। |
 
-*(বিশেষ নোট: Block 3-এর accuracy guardrail মনে রাখবেন—standard two-way Quicksort-এর `Θ(N log N)` expected-case বিশ্লেষণ **distinct keys** ধরে নেয়; অনেক duplicate key থাকলে three-way partitioning-এর মতো duplicate handling প্রয়োজন।)*
+*(বিশেষ নোট: Standard two-way Quicksort-এর `Θ(N log N)` best/expected বিশ্লেষণ **distinct keys** ধরে নেয়; আর duplicate-সমৃদ্ধ data-র জন্য **3-way partitioning** ব্যবহার করলে সব key সমান হলে এক linear pass-এই কাজ শেষ হয়ে best-case হয় **`Θ(N)`**—তাই দুটি variant-এর best-case এক নয়!)*
 
 ### গ. Comparison-Sorting Lower Bound: কেন কোনো General Comparison Sort `Ω(N log N)`-এর নিচে নামতে পারে না?
 
@@ -447,7 +472,7 @@ Block 2 ও Block 3 থেকে আমরা এদের recurrence আগে�
 1. **Hash Indexing (`Map`/`Set`):** `O(M)` extra memory খরচ করে `O(N * M)` nested lookup-কে `O(N + M)` expected সময়ে নামানো।
 2. **Precomputation / Pre-sorting:** একবার `O(N log N)` upfront cost (ও প্রয়োজনে sorted copy-র জন্য `O(N)` space) দিয়ে পরবর্তী `Q`টি lookup বা range query-কে `O(Q log N)`-এ দ্রুত করা।
 3. **Caching / Memoization:** আগের ব্যয়বহুল calculation বা query result memory-তে জমা রেখে পরের অনুরোধে পুনর্গণনা এড়ানো *(Phase 16-এ Caching Engineering-এ এর বিস্তারিত অর্থনীতি ও invalidation পড়ব)*।
-4. **Streaming Top-K Min-Heap:** উল্টো trade-off! পুরো sorted order-এর বদলে শুধু Top-`K` চেয়ে auxiliary memory `O(N)` থেকে `O(K)`-এ নামিয়ে আনা!
+4. **Top-K Min-Heap Selection:** পুরো `U`টি aggregated customer sort করার বদলে কেবল Top-`K` বাছাই করে selection সময় `O(U log U)` থেকে `O(U log K)`-এ এবং selection buffer `O(U)` থেকে `O(K)`-এ নামিয়ে আনা *(order stream-এ exact aggregation map সহ মোট space `O(U + K)`, আর pre-aggregated stream-এ `O(K)`)!*
 
 **গুরুত্বপূর্ণ সতর্কতা (Crossover Points):** আপনি যখন `(N, Q)`-এর জন্য তিনটি strategy (যেমন linear scan `O(Q * N)`, sort + binary search `O(N log N + Q log N)`, আর hash map `O(N + Q)` expected) তুলনা করবেন, তখন asymptotic expressions দিয়ে আপনি পরিষ্কার বলতে পারবেন **কোন `(N, Q)` regime-এ কোন strategy asymptotically এগিয়ে** (যেমন `Q = 1` হলে sort বা hash map বানিয়ে লাভ নেই—একবার `O(N)` linear scan-ই সবচেয়ে সোজা; আবার `Q` বড় হলে `O(Q * N)` ধসে পড়ে)। **কিন্তু কেবল asymptotic expression দেখেই বাস্তব machine-এ exact crossover সংখ্যা (`Q = 7` নাকি `Q = 42`?) নির্ধারণ করা সম্ভব নয়**—তার জন্য explicit constant factors, একটি defined cost model, এবং বাস্তব measurement প্রয়োজন *(যা আমরা Block 5 ও Block 7-এ শিখব)*!
 
@@ -463,7 +488,7 @@ Block 4-এ আপনি backend engineering-এর core data-structure toolkit 
 - Contiguous arrays বনাম linked lists (এবং "known node বনাম locating node" qualification),
 - Hash tables (load factor, chaining বনাম linear probing, rehashing, conventional expected `O(1)` model, এবং range-query সীমাবদ্ধতা),
 - Sorted arrays বনাম unbalanced/balanced search trees,
-- Binary heaps ও `O(N log K)` streaming Top-K, এবং
+- Binary heaps এবং Top-K selection (`N` order ও `U` unique customer-এ expected `O(N + U log K)` time ও `O(U + K)` space; pre-aggregated stream-এ `O(N log K)` time ও `O(K)` space), এবং
 - Sorting trade-offs (stability, in-place vs. extra space, `Ω(N log N)` comparison lower bound, hybrid sorts, ও time-space trade-offs)।
 
 কিন্তু Block 4 জুড়ে দুটি অস্বস্তিকর বাস্তব ইঙ্গিত বারবার উঁকি দিয়েছে:
@@ -498,7 +523,7 @@ Word-RAM model-এর সেই পর্দা সরিয়ে hardware reality
 | **Hash Table, Load Factor (`α = n/m`) & Rehashing** | `Practical Competence` | Conventional expected `O(1)` cost model (not an unconditional runtime guarantee) behind `Map`/`Set`, deduplication, and in-memory joins—kept separate from V8 internals. |
 | **Separate Chaining vs. Linear Probing** | `Working Understanding` | Contrasts pointer chains against contiguous open addressing, `α < 1` requirement, and primary clustering. |
 | **Binary Search & Balanced Search Trees** | `Working Understanding` | Explains why sorted arrays fail on frequent writes (`O(N)`), why unbalanced BSTs degrade to `O(N)`, and what `O(log N)` balance buys for ordered range queries (`AVL`/`Red-Black`/`B-Tree` at `Awareness`). |
-| **Binary Heap / Priority Queue & Top-K** | `Practical Competence` | Implicit 0-based array layout (`O(log N)` push/pop-min, `O(1)` peek) enabling `O(N log K)` time & `O(K)` space streaming Top-K. |
+| **Binary Heap / Priority Queue & Top-K** | `Practical Competence` | Implicit 0-based array layout (`O(log M)` amortized `push`, `O(log M)` `pop-min`, `O(1)` `peek`) enabling `O(U log K)` Top-K selection (`O(N + U log K)` expected time & `O(U + K)` space when aggregating `N` orders across `U` unique customers). |
 | **Sort Stability & Comparison Lower Bound (`Ω(N log N)`)** | `Working Understanding` | Explains multi-key ordering preservation, why general comparison sorts cannot beat `Ω(N log N)`, and why insertion sort stays valuable inside hybrid sorts. |
 | **Non-Comparison Sorts (Counting/Radix) & Hybrid Sorts (Timsort)** | `Awareness` | Ecosystem awareness of bounded-integer linear sorting and real-world hybrid library designs. |
 | **Time-Space Trade-Off** | `Practical Competence` | Deliberately trading auxiliary memory (hash indexing, precomputation, caching/memoization) or full ordering (Top-K heap) to match workload constraints. |
@@ -535,7 +560,7 @@ Word-RAM model-এর সেই পর্দা সরিয়ে hardware reality
 1. **Promo Code Lookup:** প্রতি মিনিটে `1,000,000`টি checkout অনুরোধে exact `code` (যেমন `"WINTER25"`) দিয়ে active promo rule খোঁজা; promo তালিকা দিনে মাত্র কয়েকবার update হয়।
 2. **Chronological Order Range Query:** নতুন order নিয়মিত যোগ হতে থাকার পাশাপাশি admin dashboard-এ ঘন ঘন জিজ্ঞেস করা: *"Timestamp `T1` থেকে `T2`-এর মধ্যে তৈরি সব order chronological ক্রমে দাও।"*
 3. **Webhook Event Deduplication:** মেমোরিতে আসা `200,000`টি webhook `eventId`-এর মধ্যে duplicate বাদ দিয়ে প্রতিটি unique event কেবল একবার process করা।
-4. **Streaming Top-10 VIP Customers:** `2,000,000`টি streaming order record-এর মধ্য থেকে সর্বোচ্চ মোট খরচ করা **Top-10 customer** বের করা—পুরো `2,000,000` record একসাথে sorted অবস্থায় RAM-এ না রেখে।
+4. **Top-10 VIP Customers from an Order Stream:** `N = 2,000,000`টি streaming order record (`{ orderId, customerId, amountCents }`, যেখানে একই `customerId`-এর একাধিক order থাকতে পারে এবং মোট `U` জন unique customer আছে) থেকে প্রতিটি customer-এর **মোট খরচ (total spend)** যোগ করে সর্বোচ্চ **Top-10 customer** বের করা—পুরো `2,000,000` raw order RAM-এ জমিয়ে না রেখে বা সব `U` জন customer-কে পুরো sort না করে। *(আপনার উত্তরে `N`, `U`, ও `K`-এর আলোকে exact aggregation এবং Top-K selection—উভয়ের time ও auxiliary space আলাদাভাবে হিসাব করুন।)*
 5. **FIFO Background Job Queue:** একটি in-memory worker queue যেখানে নতুন job সবসময় **tail**-এ যোগ (enqueue) হয় এবং পুরোনো job সবসময় **head** থেকে বের (dequeue) হয়।
 
 প্রতিটি workload-এর জন্য একটি পরিষ্কার **Decision Matrix** তৈরি করে লিখুন:
@@ -579,7 +604,7 @@ Word-RAM model-এর সেই পর্দা সরিয়ে hardware reality
 1. **(LO 4.1 / Outcome 5)** Contiguous dynamic arrays এবং singly/doubly linked lists-এর প্রধান operation costs ও memory overhead তুলনা করুন। কেন *"linked list-এ middle insert/delete `O(1)`"* কথাটি শর্ত ছাড়া ভুল, এবং উভয়ের scan `Θ(N)` হওয়া সত্ত্বেও sequential backend workload-এ array কেন সাধারণত বেশি ভালো করে?
 2. **(LO 4.2 / Outcomes 4, 5)** Abstract hash table কীভাবে কাজ করে (hash function, buckets, load factor `α = n/m`, separate chaining বনাম open addressing/linear probing, dynamic rehashing)? কেন expected `O(1)` একটি conditional cost model (unconditional guarantee নয়), কেন hash table ordered range query-তে ব্যর্থ হয়, এবং কেন abstract mechanics-কে V8 `Map`/`Set` internals থেকে আলাদা রাখা জরুরি?
 3. **(LO 4.3 / Outcome 5)** Unsorted array, sorted array + binary search, unbalanced BST, এবং balanced search tree-র মধ্যে exact lookup, dynamic insert/delete, এবং ordered range query-র trade-off তুলনা করুন। Sorted keys insert করলে unbalanced BST কীভাবে `Θ(N)`-এ ধসে পড়ে?
-4. **(LO 4.3 / Outcome 5)** Binary Min-Heap-এর implicit `0`-based array layout এবং `peek`/`push`/`popMin` cost ব্যাখ্যা করুন। Streaming `N`টি record থেকে Top-`K` largest মান বের করতে Max-Heap-এর বদলে `K`-সাইজের Min-Heap কীভাবে `O(N log K)` সময় ও `O(K)` space অর্জন করে—এবং `K ≈ N` হলে কী হয়?
+4. **(LO 4.3 / Outcome 5)** Binary Min-Heap-এর implicit `0`-based array layout এবং `peek`/`push` (heap sift-up cost বনাম dynamic-array resize cost আলাদা করে)/`popMin` cost ব্যাখ্যা করুন। `N`টি order record-এর stream (মোট `U` জন unique customer) থেকে সর্বোচ্চ মোট খরচ করা Top-`K` customer বের করতে `Map` aggregation + `K`-সাইজের Min-Heap কীভাবে conventional hash-table model-এ expected `O(N + U log K)` সময় ও `O(U + K)` auxiliary space নেয়—কেন arbitrary order stream-এ exact aggregation `O(K)` total space-এ সম্ভব নয়, আর `K ≈ U` হলে কী হয়?
 5. **(LO 4.4 / Outcome 5)** Insertion Sort, Merge Sort, এবং Randomized Quicksort-কে time, auxiliary space, stability, এবং duplicate/sorted-input ঝুঁকির আলোকে তুলনা করুন। Decision-tree intuition দিয়ে ব্যাখ্যা করুন কেন কোনো general comparison sort `Ω(N log N)` ভাঙতে পারে না, এবং কোন শর্তে non-comparison sort (Counting/Radix) সেই সীমার বাইরে যায়।
 
 ### Block 4 Readiness & Progression Checklist
@@ -602,7 +627,7 @@ Word-RAM model-এর সেই পর্দা সরিয়ে hardware reality
   2. *শক্তিশালী উত্তরে থাকবে:* (ক) Conventional hash-table cost model অনুযায়ী প্রতিটি lookup/insert expected `O(1)` হওয়ায় মোট সময় **`O(N)` expected** এবং unique session রাখার জন্য auxiliary space **`O(N)`**। এটি unconditional runtime guarantee নয় কারণ expected `O(1)` নির্ভর করে ভালো hash distribution ও bounded load factor-এর ওপর (collision বা rehashing-এ single-op spike হতে পারে, এবং abstract model সরাসরি V8 internals বা wall-clock SLA প্রমাণ করে না)। (খ) Hash function key-গুলোকে bucket-এ এলোমেলোভাবে ছড়িয়ে দেয়, ফলে timestamp-এর কোনো sorted order থাকে না—তাই ১০ মিনিটের range বের করতে পুরো `Set` scan ও sort করতে হবে।
 - **Pause & Check 2:**
   1. *শক্তিশালী উত্তরে থাকবে:* Monotonically increasing `invoiceId` (`1001, 1002, ...`) insert করলে প্রতিটি নতুন key আগেরটির ডান child হয়ে একটি ডান-মুখী linked chain তৈরি করে (height `h = N`)—ফলে insert ও lookup উভয়ই **`Θ(N)`**-এ নেমে যায় (`N`টি insert-এ মোট `Θ(N^2)`)। Balanced search tree rebalancing invariants বজায় রেখে height সবসময় **`O(log N)`**-এ আটকে রাখে, তাই search, insert, delete সবই `O(log N)` থাকে।
-  2. *শক্তিশালী উত্তরে থাকবে:* **Sorted array**-তে নতুন job sorted জায়গায় `insert` করতে `O(N)` shifting লাগে (যদিও সর্বনিম্ন মান শেষে রাখলে `extractMin` `O(1)` হতে পারে, তবু প্রতি insert `O(N)`)। **Binary Min-Heap**-এ `insert` (`push`) এবং `extractMin` (`popMin`) উভয়ই **`O(log N)`** (এবং `peek` `O(1)`)—ফলে dynamic insert + extract-min workload-এ heap অনেক এগিয়ে! `0`-based heap array-তে index `5`-এর জন্য: **`parent = Math.floor((5 - 1) / 2) = 2`**, **`left = 2 * 5 + 1 = 11`**, **`right = 2 * 5 + 2 = 12`**।
+  2. *শক্তিশালী উত্তরে থাকবে:* **Sorted array**-তে নতুন job sorted জায়গায় `insert` করতে `O(N)` shifting লাগে (যদিও সর্বনিম্ন মান শেষে রাখলে `extractMin` `O(1)` হতে পারে, তবু প্রতি insert `O(N)`)। **Binary Min-Heap**-এ `insert` (`push`) হলো **`O(log N)` amortized** (sift-up `O(log N)` worst-case + geometric backing-array append `O(1)` amortized, যদিও rare individual resize `O(N)` হতে পারে) এবং `extractMin` (`popMin`) হলো **`O(log N)`** (এবং `peek` `O(1)`)—ফলে dynamic insert + extract-min workload-এ heap অনেক এগিয়ে! `0`-based heap array-তে index `5`-এর জন্য: **`parent = Math.floor((5 - 1) / 2) = 2`**, **`left = 2 * 5 + 1 = 11`**, **`right = 2 * 5 + 2 = 12`**।
 - **Pause & Check 3:**
   1. *শক্তিশালী উত্তরে থাকবে:* সমান `paymentStatus`-যুক্ত invoice-গুলো যেন sort হওয়ার পরেও তাদের আগের `createdAt` chronological ক্রম না হারায়, সেজন্য **stable sort** অপরিহার্য। **Merge Sort** stable এবং deterministic `Θ(N log N)` worst-case দেয়, কিন্তু এর বিনিময়ে **`Θ(N)` auxiliary space** (merge buffer) লাগে। বিপরীতে সাধারণ in-place **Quicksort** `Θ(N)` merge buffer না নিলেও **unstable** (ফলে একই status-এর ভেতর chronological order ভেঙে যেতে পারে)।
   2. *শক্তিশালী উত্তরে থাকবে:* `Ω(N log N)` lower bound প্রযোজ্য কেবল **general comparison-based sorting model**-এর অধীনে (যেখানে algorithm কেবল `a < b` তুলনা করে `N!` permutation আলাদা করে)। এখানে সব price `0..50,000` bounded small integer হওয়ায় তুলনার বদলে key-র numeric মান সরাসরি index/count করে **non-comparison sort** (যেমন **Counting Sort**) **`O(N + k)`** (এখানে `k = 50,001`) সময়ে সাজাতে পারে—যা comparison model-এর বাইরের একটি বিশেষ শর্তের সুফল।
