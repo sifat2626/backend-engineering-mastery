@@ -412,27 +412,43 @@ function binarySearchOrder(sortedIds, targetId, low = 0, high = sortedIds.length
 
 ### Shape 3: Balanced Split-and-Merge — `T(n) = 2T(n / 2) + Θ(n)`
 
-**Worked Code (`n = right - left + 1`, divide-and-conquer split + linear combine pass):**
+**Worked Code (`n = right - left + 1`, maximum contiguous subarray sum — divide-and-conquer split + linear crossing-segment combine pass):**
 ```javascript
-// Base case: left >= right (n <= 1) -> O(1)
+// Base case: empty range (left > right) or single element (left === right) -> O(1)
 // Progress measure: range size n splits into two halves (~n/2 each)
-function maxSegmentAudit(amounts, left = 0, right = amounts.length - 1) {
-  if (left >= right) return amounts.length === 0 ? 0 : amounts[left];
+function maxSubarraySum(netChanges, left = 0, right = netChanges.length - 1) {
+  if (left > right) return 0;
+  if (left === right) return netChanges[left];
 
   const mid = Math.floor((left + right) / 2);
-  const leftBest = maxSegmentAudit(amounts, left, mid);
-  const rightBest = maxSegmentAudit(amounts, mid + 1, right);
+  const leftBest = maxSubarraySum(netChanges, left, mid);
+  const rightBest = maxSubarraySum(netChanges, mid + 1, right);
 
-  // Linear Θ(n) combine pass over [left..right]
-  let combinedSum = 0;
-  for (let i = left; i <= right; i++) {
-    combinedSum += amounts[i];
+  // Linear Θ(n) combine pass: scan left half for max suffix and right half for max prefix
+  let leftSuffixSum = 0;
+  let bestLeftSuffix = -Infinity;
+  for (let i = mid; i >= left; i--) {
+    leftSuffixSum += netChanges[i];
+    if (leftSuffixSum > bestLeftSuffix) {
+      bestLeftSuffix = leftSuffixSum;
+    }
   }
-  return Math.max(leftBest, rightBest, combinedSum);
+
+  let rightPrefixSum = 0;
+  let bestRightPrefix = -Infinity;
+  for (let j = mid + 1; j <= right; j++) {
+    rightPrefixSum += netChanges[j];
+    if (rightPrefixSum > bestRightPrefix) {
+      bestRightPrefix = rightPrefixSum;
+    }
+  }
+
+  const crossingBest = bestLeftSuffix + bestRightPrefix;
+  return Math.max(leftBest, rightBest, crossingBest);
 }
 ```
 
-- **Recurrence (ধরুন `n = 2^k`):** `T(n) = 2T(n/2) + c * n`, base case `T(1) = c`।
+- **Recurrence (ধরুন `n = 2^k`):** `T(n) = 2T(n/2) + c * n`, base case `T(1) = c` (কারণ combine ধাপে বাম অর্ধেকের maximum suffix-এ `mid - left + 1` ধাপ এবং ডান অর্ধেকের maximum prefix-এ `right - mid` ধাপ মিলিয়ে মোট ঠিক `n` ধাপে best crossing segment বের হয় → `Θ(n)`)।
 - **Recursion Tree (branching factor = `2`):**
   ```text
   Level 0:                 [n]                 -> 1 node  × (c * n)   = c * n
@@ -517,7 +533,7 @@ function countAllSubsets(items, idx = 0) {
 Block 2-এ আপনি একটি শক্তিশালী practical দক্ষতা অর্জন করলেন: আসল JavaScript backend code পড়ে sequential/nested/triangular/halving loops, multi-variable inputs (`N`, `M`, `L`), hidden built-in costs (`.includes()`, `.shift()`, `[...acc, item]`-এর cumulative বনাম peak live memory), এবং recursion trees ও call-stack depth methodically derive করা।
 
 কিন্তু এবার একটা অস্বস্তিকর বাস্তব প্রশ্ন সামনে চলে আসবে:
-> *একই code যদি কোনো input-এ `1` ধাপে শেষ হয় আর আরেক input-এ `N` ধাপ নেয়—কিংবা একটি dynamic array (`arr.push()`) `999` বার `O(1)` হয়ে `1,000`-তম বারে হঠাৎ পুরো array copy করে `O(N)` হয়ে যায়—তাহলে একজন backend engineer হিসেবে আপনি best-case, average-case, worst-case, আর amortized cost-এর মধ্যে কোনটা বিশ্বাস করবেন?*
+> *একই code যদি কোনো input-এ `1` ধাপে শেষ হয় আর আরেক input-এ `N` ধাপ নেয়—কিংবা একটি dynamic array-তে অধিকাংশ append (`arr.push()`) সস্তা হওয়ার পর কোনো এক occasional append-এ capacity বাড়িয়ে বিদ্যমান elements copy করতে হয় (যার exact resize threshold implementation-dependent)—তাহলে একজন backend engineer হিসেবে আপনি best-case, average-case, worst-case, আর amortized cost-এর মধ্যে কোনটা বিশ্বাস করবেন?*
 
 ঠিক এই প্রশ্নের উত্তর নিয়েই আসছে **Phase 2, Block 3 — Worst-Case, Average-Case, Amortized Analysis, and Algorithmic Risk**!
 
