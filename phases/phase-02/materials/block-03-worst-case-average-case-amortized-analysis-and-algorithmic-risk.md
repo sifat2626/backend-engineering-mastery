@@ -24,7 +24,7 @@ Block 2-এর শেষে আপনি আসল JavaScript backend code প�
 
 1. **Order Export Timeout:** আমাদের report service-এর একটি sorting routine staging-এ random sample data-তে চমৎকার `O(N log N)` speed-এ চলছিল—কিন্তু production-এ যখন database থেকে `createdAt` timestamp অনুযায়ী আগে থেকেই sorted `100,000` order export করা হলো, তখন সেই একই routine হঠাৎ মিনিটের পর মিনিট আটকে গেল!
 2. **Checkout Tail-Latency Spike:** আমাদের in-memory audit buffer-এ event append করা **`O(1)` amortized**—৯৯.৯% checkout request-এ কাজটা microsecond-এ শেষ হয়। অথচ হঠাৎ কোনো একটি দুর্ভাগা live checkout request-এ ঠিক ওই একটিমাত্র append call কয়েক দশ milliseconds থমকে গিয়ে downstream timeout টেনে আনল!
-3. **Tiny Request, `100%` CPU:** কোনো বিশাল traffic surge ছাড়াই একটিমাত্র `< 10 KB` HTTP request—হয় অস্বাভাবিক কিছু query parameter সহ, নয়তো একটি odd malformed promo string সহ—আমাদের backend worker-এর CPU কয়েক সেকেন্ডের জন্য `100%` আটকে দিল!
+3. **Modest Request, `100%` CPU:** কোনো বিশাল traffic surge ছাড়াই একটিমাত্র সাধারণ আকারের HTTP request—হয় অস্বাভাবিক কিছু query parameter সহ, নয়তো একটি ছোট malformed promo string সহ—আমাদের backend worker-এর CPU আটকে দিল!
 
 একটু থেমে ভাবুন: **একই code যদি কোনো input-এ ঝড়ের গতিতে চলে, অন্য input-এ ধসে পড়ে, আর `O(1)` amortized হওয়া সত্ত্বেও কোনো কোনো single request-এ হঠাৎ বড় latency spike ঘটায়—তাহলে একজন backend engineer হিসেবে কোন complexity সংখ্যার ওপর ভরসা করবেন, আর কখন সেই সংখ্যা আপনাকে ভুল নিরাপত্তা দেবে?**
 
@@ -83,20 +83,20 @@ function findOrderIndex(orders, targetId) {
 - **উদাহরণ (Randomized Quicksort):** প্রতিবার প্রথম element না নিয়ে যদি algorithm-টি `[left..right]` রেঞ্জ থেকে **নিজে uniformly random একটি pivot** বেছে নেয়, তবে আপনার database থেকে আসা timestamp-sorted order export (বা কোনো attacker-এর বানানো input)-এর ওপরও এর **expected running time হলো `Θ(N log N)`**!
 - **পার্থক্যটা চোখে আঙুল দিয়ে দেখুন:**
   - **Distributional Average-Case:** *"আমি আশা করছি user-রা আমাকে random input পাঠাবে।"* (Control আছে user/attacker-এর হাতে—ভঙ্গুর!)
-  - **Randomized Expected-Case:** *"User বা attacker যে input-ই পাঠাক না কেন, আমি ভেতরে নিজের randomness ব্যবহার করে গড়ে ভালো behavior নিশ্চিত করছি।"* (Control আছে algorithm-এর হাতে—অনেক বেশি শক্তিশালী!)
-  *(দ্রষ্টব্য: Randomized algorithm-এও একদম তাত্ত্বিক worst-case থাকতে পারে যদি প্রতিবার ভাগ্যক্রমে সবচেয়ে খারাপ random choice পড়ে, কিন্তু সেই সম্ভাবনা `N` বড় হলে অকল্পনীয়ভাবে নগণ্য হয়ে যায়—তাই high-probability expected bounds backend-এ অত্যন্ত নির্ভরযোগ্য।)*
+  - **Randomized Expected-Case:** *"User বা attacker যে input-ই পাঠাক না কেন, আমি ভেতরে নিজের randomness ব্যবহার করে গড়ে ভালো behavior নিশ্চিত করছি।"* (Control আছে algorithm-এর হাতে—তাই কোনো প্রমাণহীন distributional average-এর চেয়ে adversarial fixed input-এর বিরুদ্ধে এটি অনেক বেশি শক্তিশালী!)
+  *(অত্যন্ত জরুরি সীমারেখা: কেবল **expected running time = `Θ(N log N)`** প্রমাণ হওয়াই স্বয়ংক্রিয়ভাবে কোনো **high-probability bound** প্রতিষ্ঠা করে না, কিংবা কোনো একটি individual execution-এ long tail না ঘটার guarantee দেয় না! Expectation হলো algorithm-টির internal random choices-এর ওপর গাণিতিক গড়—একটি নির্দিষ্ট run-এ খারাপ tail ঘটার সম্ভাবনা আসলেই অতি ক্ষুদ্র কি না তা জানতে হলে আলাদা **probability / tail analysis** প্রয়োজন। তাই randomized expected-case কোনো unjustified distributional average-এর চেয়ে অনেক শক্তিশালী হলেও, এটি নিজে থেকে প্রতিটি single request-এর জন্য hard per-run latency bound নয়।)*
 
 ### ঘ. Worst-Case Complexity (সবচেয়ে প্রতিকূল input-এর সর্বোচ্চ সীমা)
 - **সংজ্ঞা:** Size `N`-এর **যেকোনো** বৈধ input-এর জন্য algorithm সর্বোচ্চ যে কাজ করতে পারে।
 - **উদাহরণ:** `findOrderIndex`-এ `targetId` array-তে না থাকলে পুরো `N`টি element scan করতে হয় → **Worst-case tight bound = `Θ(N)`**। Deterministic first-pivot Quicksort-এ sorted input-এ **Worst-case = `Θ(N^2)`**।
-- **Backend SLA/SLO-তে এর গুরুত্ব:** Production backend-এ service level agreement (SLA) বা reliability target (SLO) রক্ষা করতে গেলে আপনাকে **কোনো input-ই যেন service-কে অচল করতে না পারে** সেই guarantee দিতে হয়। তাই engineers ভরসা করেন **Worst-case bounds** অথবা algorithm-নিয়ন্ত্রিত **defensible high-probability expected bounds**-এর ওপর—কখনোই best-case বা প্রমাণহীন average-case assumption-এর ওপর নয়!
+- **Backend SLA/SLO-তে এর গুরুত্ব:** Production backend-এ service level agreement (SLA) বা reliability target (SLO) রক্ষা করতে গেলে আপনাকে **কোনো input-ই যেন service-কে অচল করতে না পারে** সেই ঝুঁকি নিয়ন্ত্রণ করতে হয়। তাই কঠোর per-request সীমানার জন্য engineers **Worst-case bounds**-এর ওপর ভরসা করেন—অথবা যেখানে আলাদা tail analysis দিয়ে প্রমাণিত **defensible high-probability bounds** আছে, সেগুলোর ওপর (শুধু best-case, অপ্রমাণিত distributional average, কিংবা কেবল expectation-কে hard per-run latency bound ধরে নয়!)।
 
 | Case Category | কিসের ওপর গড় বা সীমা নেওয়া হয়? | Input-এর ওপর assumption লাগে? | Backend Reliability / SLA-র জন্য ভরসাযোগ্য? |
 | :--- | :--- | :---: | :--- |
 | **Best-Case** | সবচেয়ে অনুকূল single input | হ্যাঁ (চরম ভাগ্যবান input) | **না** — production-এ প্রায় মূল্যহীন। |
 | **Average-Case** *(Distributional)* | সব input-এর ওপর assumed probability distribution | **হ্যাঁ** (fragile — data skewed/sorted হতে পারে) | **সাবধান!** কেবল বাস্তব input distribution প্রমাণিত ও non-adversarial হলে। |
-| **Expected-Case** *(Randomized)* | যেকোনো fixed input-এর জন্য algorithm-এর নিজস্ব random choices | **না** (যে কোনো input-এই প্রযোজ্য) | **হ্যাঁ** (defensible high-probability bound সহ)। |
-| **Worst-Case** | size `N`-এর সবচেয়ে প্রতিকূল input | **না** (সর্বজনীন upper envelope) | **হ্যাঁ** — hardest guarantee, adversarial input-এও নিরাপদ। |
+| **Expected-Case** *(Randomized)* | যেকোনো fixed input-এর জন্য algorithm-এর নিজস্ব random choices | **না** (যেকোনো fixed input-এ প্রযোজ্য) | **কেবল expectation!** Unjustified average-এর চেয়ে শক্তিশালী, কিন্তু hard per-run বা high-probability tail guarantee নয় (তাতে আলাদা tail analysis লাগে)। |
+| **Worst-Case** | size `N`-এর সবচেয়ে প্রতিকূল input | **না** (সর্বজনীন upper envelope) | **হ্যাঁ** — hardest per-run guarantee, adversarial input-এও নিরাপদ। |
 
 > **Pause & Check 1** *(শেষের Self-Check Guidance দেখার আগে `phases/phase-02/notes/block-03-notes.md` ফাইলে সংক্ষেপে নিজের উত্তর লিখুন।)*
 > একটি logistics backend-এ দুটি sorting approach তুলনা করা হচ্ছে:
@@ -253,7 +253,7 @@ Aggregate proof-এর পাশাপাশি **Banker's (Accounting) Method**
 | :--- | :--- | :---: | :---: |
 | **Best-Case** | সবচেয়ে অনুকূল single input | না | কেবল ভাগ্যবান input-এ |
 | **Average-Case** | Assumed input distribution | **হ্যাঁ** (input-এ) | না (skewed input-এ ভাঙতে পারে) |
-| **Expected-Case** | Algorithm-এর internal random choices (যেকোনো input-এ) | **হ্যাঁ** (algorithm-এ) | উচ্চ সম্ভাবনায়, কিন্তু rare tail সম্ভব |
+| **Expected-Case** | Algorithm-এর internal random choices (যেকোনো fixed input-এ) | **হ্যাঁ** (algorithm-এ) | **না** — এটি কেবল expectation, কোনো individual-operation বা high-probability guarantee নয় |
 | **Worst-Case** | সবচেয়ে প্রতিকূল single input/op | **না** | **হ্যাঁ** — প্রতিটি single op-এ hard upper bound |
 | **Amortized** | যেকোনো valid sequence-এর total cost `÷ N` | **না** (100% deterministic) | **না!** Single op `O(N)` spike করতে পারে |
 
@@ -345,14 +345,15 @@ Naive half-full policy-র সমস্যা ছিল **grow-এর পরে�
 
 - **Conventional Hash-Table Model:** একটি hash table প্রতিটি key-কে একটি **hash function** `h(key)` দিয়ে একটি bucket index (`0 .. m - 1`)-এ ম্যাপ করে। যদি keys bucket-গুলোতে মোটামুটি সমানভাবে ছড়িয়ে পড়ে এবং load factor (`n / m`) সীমিত রাখা হয়, তবে প্রতিটি lookup বা insert-এর কাজ হলো **expected `O(1)`**।
 - **যখন Hash Function-টি Deterministic ও Predictable:** ধরুন একটি সহজ, non-randomized hash table (যেমন কোনো custom table বা পুরোনো runtime-এর deterministic hash function) untrusted HTTP query parameters (`?k1=1&k2=1&...&kN=1`) key হিসেবে store করছে।
+  - **Explicit Collision-Resolution Cost Model (আগে assumption স্পষ্ট করুন!):** সব hash-table collision strategy-তে insertion cost হুবহু এক রকম হয় না। উদাহরণস্বরূপ, কোনো separate-chaining table যদি duplicate check ছাড়াই কেবল bucket-এর মাথায় নতুন entry prepend করে দেয়, তবে insertion প্রতিবার `O(1)` হতে পারে (যদিও পরে ওই bucket-এ lookup করলে `O(N)` লাগবে)। এখানে আমরা একটি সাধারণ map/dictionary model ধরছি: **separate chaining যেখানে প্রতিটি insert-এর আগে duplicate key যাচাই করতে ওই bucket-এর বিদ্যমান chain পুরোটা scan করা হয়** *(একইভাবে open addressing with linear probing-এও একই probe cluster-এ পরপর colliding key বসাতে গেলে ক্রমবর্ধমান probe chain scan করতে হয়)*।
   - যেহেতু hash function-টি public ও deterministic, attacker আগে থেকেই নিজের machine-এ বসে **`N`টি সম্পূর্ণ ভিন্ন key** তৈরি করতে পারে যাদের **সবার hash মান হুবহু একই bucket-এ পড়ে (hash collision)**!
-  - এবার server যখন ওই `N`টি colliding key এক-এক করে insert করে, তখন সবগুলোই জমে একই bucket-এর ভেতর (একটি দীর্ঘ linked list বা probe chain হয়ে)!
-  - ১ম key → `0` comparison; ২য় key → `1` comparison; ৩য় key → `2` comparison; ...; `N`-তম key → `N - 1` comparison!
+  - এবার server যখন আমাদের duplicate-checking chaining model-এ ওই `N`টি colliding key এক-এক করে insert করে:
+    - ১ম key → bucket খালি (`0` comparison); ২য় key → `1` comparison; ৩য় key → `2` comparison; ...; `N`-তম key → `N - 1` comparison!
   - **মোট কাজ:** `0 + 1 + 2 + ... + (N - 1) = N(N - 1) / 2 = Θ(N^2)`!
-  - ভেবে দেখুন: মাত্র `20,000`টি ছোট query parameter (একটা ছোট HTTP body!) server-এ প্রায় **`200,000,000`** comparison ঘটিয়ে event loop জ্যাম করে দিতে পারে!
-- **ঐতিহাসিক প্রমাণ (Mandatory 3):** **Scott A. Crosby & Dan S. Wallach (USENIX Security 2003)** তাঁদের যুগান্তকারী পেপার *"Denial of Service via Algorithmic Complexity Attacks"*-এ বাস্তবে দেখিয়েছিলেন যে ওই সময়ের নির্দিষ্ট কিছু non-randomized hash-table implementation (যেমন Perl, Squid, Bro) কীভাবে অল্প bandwidth ব্যবহার করেই `O(N^2)` collision attack-এ অচল হয়ে পড়ত।
+  - উদাহরণ হিসেবে `N = 20,000`টি colliding key এই model-এ insert করতেই প্রায় `20,000 × 19,999 / 2 ≈ 200,000,000` comparison লেগে যেতে পারে—যা একটি single request-এর ভেতর server CPU-র ওপর মারাত্মক চাপ তৈরি করতে যথেষ্ট!
+- **ঐতিহাসিক প্রমাণ (Mandatory 3):** **Scott A. Crosby & Dan S. Wallach (USENIX Security 2003)** তাঁদের যুগান্তকারী পেপার *"Denial of Service via Algorithmic Complexity Attacks"*-এ বাস্তবে দেখিয়েছিলেন যে ওই সময়ের নির্দিষ্ট কিছু non-randomized hash-table implementation (যেমন Perl, Squid, Bro) কীভাবে predictable hash collision-এ `O(N^2)` work-এর মুখে পড়ে অচল হয়ে যেত।
 - **অত্যন্ত জরুরি সীমারেখা (Modern JS `Map` / `Set` নিয়ে ভুল দাবি করবেন না!):** Crosby & Wallach (2003) প্রমাণ করে **abstract non-randomized hash-table collision mechanism** এবং সেই সময়ের নির্দিষ্ট vulnerable implementation-গুলোর ঝুঁকি। এই ঐতিহাসিক গবেষণা **কখনোই প্রমাণ করে না যে আধুনিক native JavaScript `Map` বা `Set`-এ হুবহু একই vulnerability আছে!** *(Node.js/V8-এর `Map`/`Set` internal hashing implementation Phase 5-এ পড়া হবে।)*
-- **Mitigation Concept (`Awareness` মাত্র):** আধুনিক বহু runtime **randomized / keyed (seeded) hashing** (যেমন **SipHash**-এর মতো ধারণা, যেখানে process শুরু হলেই একটি গোপন random seed নেওয়া হয়) ব্যবহার করে। ফলে বাইরে থাকা attacker জানেই না কোন দুটি key একই bucket-এ পড়বে—অর্থাৎ প্রতিরক্ষাটি ভঙ্গুর distributional average-case থেকে সরে গিয়ে algorithm-নিয়ন্ত্রিত **expected-case**-এ রূপ নেয়! *(Cryptographic hash math ও production hardening Phase 19-এ।)*
+- **Mitigation Concept (`Awareness` মাত্র):** কিছু আধুনিক runtime ও library **secret keyed / randomized hashing** (যার একটি পরিচিত `Awareness`-level উদাহরণ হলো **SipHash**, যেখানে process-এর জন্য একটি গোপন random seed ব্যবহার করা হয়—যদিও সব আধুনিক runtime একই strategy বা SipHash ব্যবহার করে না) অবলম্বন করে। এর মূল ধারণা হলো: secret seed জানা না থাকলে বাইরে থাকা attacker-এর জন্য আগে থেকে **precomputed** collision set তৈরি করা অনেক কঠিন হয়ে পড়ে, এবং একটি **stated threat model**-এর অধীনে (যেখানে seed গোপন থাকে) ওই secret seed-এর ওপর expected behavior বিশ্লেষণ করা যায়। তবে এটি কোনো **unconditional guarantee** নয়—প্রতিটি implementation বা যেকোনো adaptive attacker (যেমন timing/side-channel probing বা seed ফাঁস হওয়ার ঝুঁকি)-এর বিরুদ্ধে তা স্বয়ংক্রিয়ভাবে অজেয় নয়। *(Cryptographic hash math ও production hardening Phase 19-এ।)*
 
 ### Mechanism 2: Catastrophic Regular-Expression Backtracking (ReDoS)
 
@@ -375,10 +376,10 @@ Naive half-full policy-র সমস্যা ছিল **grow-এর পরে�
   - মাত্র `n = 4`টি `'a'`-এর জন্য **`2^(4 - 1) = 8`**টি ভিন্ন partition পরীক্ষা করতে হলো!
   - সাধারণভাবে `n`টি `'a'`-এর পর একটি `'!'` থাকলে nested `(a+)+` pattern-টি **`2^(n - 1) = Θ(2^n)`**টি উপায় চেষ্টা করে *সবগুলোই ব্যর্থ হওয়ার পর* কেবল `false` ফেরত দেয়! *(Pattern-এর ধরন অনুযায়ী ReDoS `Θ(N^2)` polynomial বা `Θ(2^N)` exponential দুটোই হতে পারে।)*
 
-একটি ছোট, নিরাপদ Node.js উদাহরণে এই growth-টা দেখুন *(সাবধান: নিজের laptop-এ পরীক্ষা করলে কখনো `n = 40` দেবেন না—ছোট `n = 10..22` দিয়েই `2^n` বিস্ফোরণ স্পষ্ট দেখা যায়!)*:
+একটি ছোট, নিরাপদ Node.js উদাহরণে এই growth-টা দেখুন *(সাবধান: নিজের machine-এ পরীক্ষা করলে কখনোই `n`-এর মান ইচ্ছেমতো বড় করবেন না—যেমন `n = 40` দেবেন না; ছোট, bounded মান দিয়েই exponential growth-এর আচরণ নিরাপদে দেখা যায়!)*:
 
 ```javascript
-// Safe, strictly bounded illustration of catastrophic backtracking (DO NOT pass large n like 40)
+// Safe, strictly bounded illustration of catastrophic backtracking (DO NOT increase n arbitrarily)
 const ambiguousPromoPattern = /^([a-z]+)+$/;
 
 function demoBacktrackingGrowth() {
@@ -392,7 +393,7 @@ function demoBacktrackingGrowth() {
 }
 ```
 
-দেখুন: মাত্র `23` character-এর একটা string-ই (`n = 22` + `"!"`, `2^21` backtracking paths) যেখানে কয়েক দশ millisecond নিতে পারে, সেখানে `n = 35` হলে backtracking path-এর সংখ্যা বাড়ে আরও `2^13 = 8,192×`—যা অনায়াসেই মিনিটখানেক বা তার বেশি সময়ের জন্য পুরো Node.js worker-কে আটকে দিতে পারে!
+এই illustrative backtracking model-এ `'a'`-এর সংখ্যা মাত্র `1` বাড়লেই সম্ভাব্য partition-এর সংখ্যা দ্বিগুণ (`2^(n - 1)`) হয়ে যায়—ফলে খুব ছোট একটি near-match string-ও exponential সংখ্যক backtracking path তৈরি করে। *(গুরুত্বপূর্ণ সতর্কতা: বাস্তবে ঠিক কত milliseconds বা seconds লাগবে তা regex engine, runtime version, internal optimizations, এবং hardware-এর ওপর নির্ভর করে—কেবল asymptotic partition count থেকে নির্দিষ্ট wall-clock runtime অনুমান করা যায় না। তবু exponential growth-এর কারণেই ইচ্ছেমতো বড় `n` দিলে একটি backtracking matcher মারাত্মকভাবে আটকে যেতে পারে, তাই demo-তে `n` কখনোই নির্বিচারে বাড়াবেন না!)*
 
 *(সংক্ষিপ্ত production প্রসঙ্গ: ঠিক এই catastrophic backtracking mechanism-ই **Cloudflare-এর July 2, 2019 global outage**-এ একটি অস্পষ্ট WAF regular expression-এর মাধ্যমে বিশ্বজুড়ে server CPU `100%` করে দিয়েছিল। সেই বাস্তব postmortem-টি আমরা Block 6-এ বিস্তারিত পড়ব; এখানে মূল focus হলো ReDoS-এর worst-case complexity mechanism বোঝা।)*
 
@@ -402,8 +403,8 @@ function demoBacktrackingGrowth() {
   - এবং যেখানে untrusted regex বা strict SLA দরকার, সেখানে backtracking-এর বদলে **linear-time (`O(n)`) regex matching** approach-এর অস্তিত্ব জানা *(regex engine internals ও production hardening এই block-এর বাইরে)*।
 
 > **Pause & Check 3** *(শেষের Self-Check Guidance দেখার আগে `phases/phase-02/notes/block-03-notes.md` ফাইলে সংক্ষেপে নিজের উত্তর লিখুন।)*
-> দুটি আলাদা API endpoint-এ `< 10 KB`-এর একটিমাত্র HTTP request-এ backend CPU `100%` আটকে গেছে:
-> - **Endpoint A:** Untrusted JSON payload-এর keys একটি custom in-memory table-এ রাখে, যার hash function হলো `sumOfCharCodes(key) % bucketCount`।
+> দুটি আলাদা API endpoint-এ একটিমাত্র crafted HTTP request-এ backend CPU মারাত্মকভাবে আটকে গেছে:
+> - **Endpoint A:** Untrusted JSON payload-এর keys একটি custom in-memory separate-chaining table-এ রাখে, যার hash function হলো `sumOfCharCodes(key) % bucketCount` এবং প্রতিটি insert-এর আগে duplicate key যাচাই করতে ওই bucket-এর বিদ্যমান chain scan করে।
 > - **Endpoint B:** User-এর পাঠানো tag string যাচাই করে `/^([a-z0-9]+)+$/` দিয়ে; একজন caller পাঠিয়েছে `30`টি `'a'`-এর শেষে একটি `'!'`।
 > 1. Endpoint A এবং Endpoint B-র পেছনে থাকা **দুটি আলাদা algorithmic mechanism** এবং তাদের worst-case growth class (`Θ(N^2)` বনাম `Θ(2^n)`) চিহ্নিত করুন। কেন এরা দুটি পৃথক failure mechanism?
 > 2. কেউ যদি বলে *"Crosby & Wallach (2003) প্রমাণ করেছে সব hash table-ই vulnerable, তাই Node.js-এর built-in `Map`-ও Endpoint A-র মতোই সহজে ভেঙে পড়বে"*—এই যুক্তির ঠিক কোথায় technical error রয়েছে?
@@ -509,7 +510,7 @@ Block 3-এ আপনি জটিল backend performance reasoning-এর এ�
 - **(গ)** Live production backend-এ এর **বাস্তব operational failure mode** কী হবে?
 - **(ঘ)** Block 3-এর conceptual স্তরে এর **সঠিক engineering direction / mitigation** কী? *(Phase 5 V8 internals বা Phase 19 WAF config লেখার দরকার নেই।)*
 
-1. **Scenario 1 — Untrusted HTTP Query Parameters in a Naive Hash Table:** একটি internal proxy service untrusted HTTP query parameters store করার জন্য একটি custom, non-randomized hash table ব্যবহার করে। Developer দাবি করছেন: *"Hash table তো `O(1)`, তাই query string যত বড়ই হোক CPU safe!"* *(আপনার উত্তরে স্পষ্টভাবে দেখান কেন এই abstract/historical collision mechanism-কে সরাসরি আধুনিক runtime-managed JavaScript `Map`/`Set`-এর সাথে এক করে ফেলা ভুল।)*
+1. **Scenario 1 — Untrusted HTTP Query Parameters in a Naive Hash Table:** একটি internal proxy service untrusted HTTP query parameters store করার জন্য একটি custom, non-randomized separate-chaining hash table ব্যবহার করে (যা প্রতিটি insert-এর আগে duplicate key যাচাই করতে bucket chain scan করে)। Developer দাবি করছেন: *"Hash table তো `O(1)`, তাই query parameters যত বড়ই হোক CPU safe!"* *(আপনার উত্তরে স্পষ্টভাবে দেখান কেন এই abstract/historical collision mechanism-কে সরাসরি আধুনিক runtime-managed JavaScript `Map`/`Set`-এর সাথে এক করে ফেলা ভুল।)*
 2. **Scenario 2 — Checkout Buffer Doubling at `1,048,576` Items:** একটি latency-critical checkout service প্রতিটি order event-কে একটি shared in-memory dynamic buffer-এ append করে। Capacity `1,048,576` পূর্ণ হতেই একটি live checkout request-এর ভেতর buffer দ্বিগুণ (`2,097,152`) হয়। টিম অবাক হয়ে বলছে: *"আমরা তো `O(1)` amortized buffer ব্যবহার করেছি—তাহলে checkout request-এ হঠাৎ latency spike এল কেন?"*
 3. **Scenario 3 — First-Pivot Deterministic Quicksort on Order Exports:** আমাদের reporting worker প্রতিদিন database থেকে `createdAt` timestamp অনুযায়ী sorted order exports এনে custom deterministic Quicksort (যা সবসময় প্রথম element-কে pivot নেয়) দিয়ে পুনরায় সাজায়। PR-এ লেখা ছিল: *"Quicksort average-case `O(N log N)`, তাই `200,000` rows নিয়ে কোনো চিন্তা নেই।"*
 4. **Scenario 4 — Confusing Amortized with Average-Case:** Design review-এ একজন engineer মন্তব্য করলেন: *"আমাদের data structure-টির operation `O(1)` amortized—এর মানে হলো random inputs দিলে average-এ প্রতিটা operation `O(1)` সময়ে শেষ হয়, আর কোনো request কখনোই `O(N)` সময় নেবে না।"* *(এই একটি বাক্যের ভেতর লুকানো সব কয়টি আলাদা reasoning error শনাক্ত করে সঠিকভাবে rewrite করুন।)*
@@ -525,7 +526,7 @@ Block 3-এ আপনি জটিল backend performance reasoning-এর এ�
 
 *(Note: `~20–25 min` কেবল যাঁরা এটি করতে চান তাঁদের জন্য একটি approximate estimate—কোনো strict time limit নয়।)*
 
-1. **(LO 3.1 / Outcome 4)** Best-case, distributional average-case, randomized expected-case, এবং worst-case complexity-র মধ্যে পার্থক্য ব্যাখ্যা করুন। কেন Big-O (`O(...)`) নিজে থেকে worst-case বোঝায় না, এবং কেন backend reliability guarantee-র জন্য distributional average-case-এর চেয়ে worst-case বা randomized expected-case বেশি ভরসাযোগ্য?
+1. **(LO 3.1 / Outcome 4)** Best-case, distributional average-case, randomized expected-case, এবং worst-case complexity-র মধ্যে পার্থক্য ব্যাখ্যা করুন। কেন Big-O (`O(...)`) নিজে থেকে worst-case বোঝায় না, কেন distributional average-case-এর চেয়ে randomized expected-case ও worst-case বেশি শক্তিশালী—এবং কেন কেবল randomized expected-case bound একাই প্রতি single run-এর hard latency বা high-probability tail guarantee দেয় না?
 2. **(LO 3.2 / Outcome 4)** Initial capacity `1` ধরে **Aggregate Method** দিয়ে সম্পূর্ণ step-by-step prove করুন কেন `×2` dynamic-array doubling `N`টি append-এ `O(1)` amortized cost দেয়, আর `+k` fixed-increment growth কেন `Θ(N^2)` total copying এবং `Θ(N)` amortized cost-এ নেমে যায়। পাশাপাশি Banker's/Accounting intuition-টি সংক্ষেপে ব্যাখ্যা করুন।
 3. **(LO 3.2 / Outcome 4)** কেন `size === capacity`-এ `×2` grow করে `size === capacity / 2`-এ সাথে সাথে `÷2` shrink করলে resize thrashing ঘটে? Separated shrink threshold (`cap / 4` বা Pat Morin-এর `cap / 3` policy) কীভাবে hysteresis তৈরি করে `O(1)` amortized cost ফিরিয়ে আনে?
 4. **(LO 3.3 / Outcome 4)** সুস্পষ্টভাবে ব্যাখ্যা করুন কেন **Amortized ≠ Average-Case**, এবং কেন একটি **`O(1)` amortized** operation live latency-sensitive backend request-এ এখনো individual `O(N)` tail-latency spike তৈরি করতে পারে।
@@ -548,10 +549,10 @@ Block 3-এ আপনি জটিল backend performance reasoning-এর এ�
 
 - **Pause & Check 1:**
   1. *শক্তিশালী উত্তরে থাকবে:* Approach A-র `Θ(N log N)` গড় performance নির্ভর করে **input-গুলো uniformly random** হওয়ার assumption-এর ওপর। কিন্তু upstream partner যখন newest-first (reverse-sorted) batch পাঠায়, তখন সেই distributional assumption ভেঙে পড়ে এবং Approach A সরাসরি তার **`Θ(N^2)` worst-case**-এ ঢুকে পড়ে—ফলে production batch timeout বা CPU stall হয়।
-  2. *শক্তিশালী উত্তরে থাকবে:* Approach A-র **average-case** হলো input-এর assumed probability distribution-এর ওপর গড় (যা user/upstream data-র হাতে ভঙ্গুর)। বিপরীতে Approach B-র **expected-case** হলো algorithm-টির নিজের internal random choices-এর ওপর গড়—যা **যেকোনো fixed input**-এর (এমনকি reverse-sorted বা adversary-crafted input-এর) জন্যই `Θ(N log N)` বজায় রাখে। আর `O(...)` কেবল একটি asymptotic **upper bound** নির্দেশ করে—এটি best, average, expected, নাকি worst case-এর ওপর প্রয়োগ করা হয়েছে তা আলাদাভাবে উল্লেখ না করলে কিছুই স্পষ্ট হয় না।
+  2. *শক্তিশালী উত্তরে থাকবে:* Approach A-র **average-case** হলো input-এর assumed probability distribution-এর ওপর গড় (যা user/upstream data-র হাতে ভঙ্গুর)। বিপরীতে Approach B-র **expected-case** হলো algorithm-টির নিজের internal random choices-এর ওপর গড়—যা **যেকোনো fixed input**-এর (এমনকি reverse-sorted বা adversary-crafted input-এর) জন্যই `Θ(N log N)` **expected** cost বজায় রাখে *(যদিও কেবল expectation একাই প্রতি single run-এর hard latency বা high-probability tail guarantee নয়—সেজন্য আলাদা tail analysis প্রয়োজন)*। আর `O(...)` কেবল একটি asymptotic **upper bound** নির্দেশ করে—এটি best, average, expected, নাকি worst case-এর ওপর প্রয়োগ করা হয়েছে তা আলাদাভাবে উল্লেখ না করলে কিছুই স্পষ্ট হয় না।
 - **Pause & Check 2:**
   1. *শক্তিশালী উত্তরে থাকবে:* `N`টি append-এ resize ঘটে যখন `size` হলো `1, 3, 9, ..., 3^p` (যেখানে `3^p < N`)। মোট copies = `1 + 3 + 9 + ... + 3^p = (3^(p + 1) - 1) / 2`। যেহেতু `3^p < N`, তাই `3^(p + 1) = 3 * 3^p < 3N`, অর্থাৎ `Total Copies < 1.5N`! এর সাথে `N`টি ordinary write যোগ করলে `Total Cost < 2.5N` → **Amortized cost = `Total Cost / N < 2.5 = O(1)`**! *(Trade-off: doubling-এ সর্বোচ্চ প্রায় `50%` slot খালি থাকতে পারে, কিন্তু tripling-এ resize-এর পরপরই প্রায় `67%` (`2/3`) memory খালি পড়ে থাকে—অর্থাৎ কিছুটা কম amortized copying-এর বদলে বেশি peak memory overhead!)*
   2. *শক্তিশালী উত্তরে থাকবে:* **না!** Tripling resize-এর সংখ্যা সামান্য কমালেও যেকোনো একটি resize যখন ঘটে (যেমন `size = 3^p`), তখন সেই **একটিমাত্র live append request-কে পুরো `3^p = Θ(N)` element copy** করতেই হয়—তাই individual `O(N)` tail-latency spike-এর ঝুঁকি এখনো রয়ে যায়।
 - **Pause & Check 3:**
-  1. *শক্তিশালী উত্তরে থাকবে:* **Endpoint A** আক্রান্ত হয়েছে **Hash-Table Collision Degradation** দ্বারা: deterministic ও predictable `sumOfCharCodes % bucketCount` hash function-এর কারণে attacker `N`টি ভিন্ন key একই bucket-এ ফেলে `0 + 1 + ... + (N - 1) = Θ(N^2)` comparison ঘটায়। **Endpoint B** আক্রান্ত হয়েছে **Catastrophic Regular-Expression Backtracking (ReDoS)** দ্বারা: ambiguous nested quantifier `([a-z0-9]+)+` শেষে invalid `'!'` দেখে `30`টি `'a'`-কে `2^(30 - 1) = Θ(2^n)` ভিন্নভাবে partition করে backtrack করে। এরা দুটি সম্পূর্ণ আলাদা mechanism—একটি deterministic bucket collision (`Θ(N^2)`), অন্যটি ambiguous pattern-এর exponential search tree (`Θ(2^n)`)।
+  1. *শক্তিশালী উত্তরে থাকবে:* **Endpoint A** আক্রান্ত হয়েছে **Hash-Table Collision Degradation** দ্বারা: deterministic ও predictable `sumOfCharCodes % bucketCount` hash function-এর কারণে attacker `N`টি ভিন্ন key একই bucket-এ ফেলে এবং duplicate-checking bucket scan-এর কারণে `0 + 1 + ... + (N - 1) = Θ(N^2)` comparison ঘটায়। **Endpoint B** আক্রান্ত হয়েছে **Catastrophic Regular-Expression Backtracking (ReDoS)** দ্বারা: ambiguous nested quantifier `([a-z0-9]+)+` শেষে invalid `'!'` দেখে `30`টি `'a'`-কে `2^(30 - 1) = Θ(2^n)` ভিন্নভাবে partition করে backtrack করে। এরা দুটি সম্পূর্ণ আলাদা mechanism—একটি deterministic bucket collision (`Θ(N^2)`), অন্যটি ambiguous pattern-এর exponential search tree (`Θ(2^n)`)।
   2. *শক্তিশালী উত্তরে থাকবে:* Crosby & Wallach (2003) দেখিয়েছিল নির্দিষ্ট কিছু ২০০৩-এর non-randomized hash-table implementation-এ collision degradation কীভাবে ঘটে। এটি আধুনিক runtime-managed JavaScript `Map`/`Set`-এর internal hashing implementation-কে পরীক্ষা বা vulnerable প্রমাণ **করে না** (আধুনিক runtimes ভিন্ন internal design ও randomized/defensive techniques ব্যবহার করতে পারে; V8 `Map`/`Set` internals Phase 5-এ)।
