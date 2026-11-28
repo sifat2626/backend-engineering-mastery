@@ -181,68 +181,84 @@ if (written == -1) {
 }
 ```
 
-ভালো করে তাকান! `write(...)` দেখতে হুবহু একটি সাধারণ C function call-এর মতো—ঠিক যেমন OSTEP Chapter 6 (`6.2 Aside: Why System Calls Look Like Procedure Calls`) এবং Linux `syscalls(2)` বলে! কিন্তু এটি **সরাসরি kernel-এর ভেতরে jump করছে না**। আসলে এখানে দুটো আলাদা জিনিস ঘটছে:
-1. আপনার code (বা Node.js-এর C++/libuv স্তর) প্রথমে call করে **`glibc`-র `write()` wrapper function**-কে—যা নিজেও এখনো **user space**-এই আছে!
-2. সেই `glibc` wrapper function-টির ভেতরে লুকানো থাকে বিশেষ CPU instruction (আধুনিক x86-64 Linux-এ `syscall` instruction; OSTEP-এ সাধারণভাবে যাকে **trap instruction** বলা হয়েছে)।
+ভালো করে তাকান! C-তে `write(...)` দেখতে হুবহু একটি সাধারণ function call-এর মতো—ঠিক যেমন OSTEP Chapter 6 (`6.2 Aside: Why System Calls Look Like Procedure Calls`) এবং Linux `syscalls(2)` বলে! কিন্তু এটি **সরাসরি kernel-এর ভেতরে jump করছে না**:
+1. একটি C program-এ `write(...)` call করলে তা প্রথমে যায় **`glibc`-র `write()` wrapper function**-এ—যা নিজেও এখনো **user space**-এই আছে। *(আর Node.js-এ `fs.writeSync()`-এর মতো API থেকে Linux kernel পর্যন্ত ভেতরের স্তরগুলো নির্দিষ্ট Node.js runtime version, platform, ও underlying library/C++ implementation-এর ওপর নির্ভর করে—তাই সব পরিবেশে একটিমাত্র নির্দিষ্ট wrapper chain ধরে নেওয়া যাবে না; তবে শেষ পর্যন্ত Linux-এ এটি একটি আসল `write` system call-ই trigger করে, যা আমরা একটু পরেই `strace` দিয়ে চোখে দেখব!)*
+2. সেই user-space syscall invocation-এর ভেতরে লুকানো থাকে বিশেষ CPU instruction—OSTEP-এর সাধারণ (generic) conceptual model-এ যাকে **trap instruction** বলা হয়েছে, আর আধুনিক 64-bit x86-64 Linux-এ যা হলো **`SYSCALL` instruction**।
 
-### System Call-এর ৬-ধাপের পূর্ণ প্রোটোকল (OSTEP `6.2` + Linux `syscalls(2)`)
+### Conceptual Model (OSTEP) বনাম বাস্তব x86-64 Linux-এ System Call-এর ৬ ধাপ
 
-একটি `write()` system call শুরু থেকে শেষ পর্যন্ত যে ছয়টি সুনির্দিষ্ট ধাপে চলে, তার পুরো flow-টা দেখুন:
+এখানে দুটি স্তর পরিষ্কারভাবে আলাদা রাখা জরুরি—যাতে textbook-এর সরল conceptual model আর আপনার Ubuntu x86-64 machine-এর বাস্তব kernel implementation গুলিয়ে না যায়:
+
+- **OSTEP-এর Generic Conceptual Model (`6.2`):** যেকোনো CPU architecture-এর জন্য ধারণাটা সহজ করে বোঝাতে OSTEP বলে—boot-এর সময় kernel CPU-র **Trap Table** set করে, আর user program `trap` instruction চালালে hardware নিজেই user registers kernel stack-এ save করে trap table-এর handler-এ jump করে।
+- **আধুনিক x86-64 Linux-এর বাস্তব Implementation ([`arch/x86/entry/entry_64.S`](https://github.com/torvalds/linux/blob/master/arch/x86/entry/entry_64.S) ও [Linux Kernel Docs](https://kernel.org/doc/html/v5.3/process/adding-syscalls.html)):** x86-64 Linux `SYSCALL`-এর জন্য generic trap table না খুঁজে boot-এর সময় CPU-র বিশেষ syscall-entry **MSRs (Model-Specific Registers)** configure করে—যার মধ্যে **`LSTAR`** register-টিতে থাকে kernel-এর 64-bit syscall entry point (`entry_SYSCALL_64`)। User code যখন `SYSCALL` চালায়, CPU privilege বাড়িয়ে kernel mode-এ যায়, user return address (`RIP`) জমা রাখে **`RCX`** register-এ এবং flags (`RFLAGS`) জমা রাখে **`R11`** register-এ, তারপর `LSTAR`-এর ঠিকানায় jump করে। **গুরুত্বপূর্ণ:** x86-64 `SYSCALL` instruction নিজে **kernel stack-এ switch করে না এবং সব user register stack-এ save করে না!** সাথে সাথেই **Linux-এর kernel entry assembly** (`entry_64.S`) user stack থেকে kernel stack-এ switch করে, প্রয়োজনীয় user register state save করে, এবং তারপর syscall number দেখে Linux-এর syscall implementation/table-এর মাধ্যমে আসল kernel handler dispatch করে!
+
+দুটি ছবিকে মিলিয়ে একটি `write()` system call-এর পূর্ণ ৬-ধাপের flow-টা দেখুন:
 
 ```text
   USER MODE (Unprivileged)                         KERNEL MODE (Privileged)
   ========================                         ========================
                                                    [0. Boot Time Setup]
-                                                   Kernel installs Trap Table
-                                                   addresses into CPU hardware
-                                                   (user mode CANNOT alter it!)
+                                                   - OSTEP conceptual model: Kernel
+                                                     configures hardware Trap Table.
+                                                   - Actual x86-64 Linux: Kernel
+                                                     programs syscall-entry MSRs
+                                                     (including LSTAR entry point).
+                                                   (User mode CANNOT alter either!)
 
-  1. App calls fs.writeSync()
-     -> Node C++ -> glibc write() wrapper
-  2. Wrapper puts syscall number (e.g. SYS_write)
-     & args (fd, buf_addr, len) into CPU registers
-  3. Wrapper executes hardware trap / syscall  ───▶ [Hardware privilege switch!]
+  1. App invokes OS-facing API
+     (e.g., C write() -> glibc wrapper; or
+      Node.js fs.writeSync() via its runtime/
+      platform-dependent internal layers)
+  2. Syscall invocation places syscall number
+     (e.g., SYS_write) & args into CPU registers
+  3. Executes trap / x86-64 SYSCALL           ───▶ [Hardware privilege switch!]
                                                     - Mode: User -> Kernel
-                                                    - Saves user registers & PC
-                                                      onto process kernel stack
-                                                    - Jumps ONLY to trap table
-                                                      handler address
+                                                    - OSTEP generic model: hardware
+                                                      saves regs to kernel stack &
+                                                      jumps via Trap Table.
+                                                    - Actual x86-64 Linux: SYSCALL
+                                                      saves RIP->RCX, RFLAGS->R11 &
+                                                      jumps to LSTAR (does NOT switch
+                                                      stack or save all regs itself).
 
-                                                   4. Kernel syscall handler runs:
-                                                      - Looks up syscall number
-                                                      - VALIDATES all user args!
-                                                        (Is fd valid? Is buf_addr
-                                                         inside user space, NOT
-                                                         kernel memory?)
-                                                      - Executes privileged I/O
-                                                      - Sets return value (bytes
-                                                        written or -ERRNO)
+                                                   4. Linux kernel entry & dispatch:
+                                                      - Entry assembly (entry_64.S)
+                                                        switches to kernel stack &
+                                                        saves required user state
+                                                      - Dispatches syscall number via
+                                                        Linux syscall implementation/table
+                                                      - Validates inputs per syscall's
+                                                        contract (for write(): valid fd,
+                                                        write access mode/permissions,
+                                                        user-buffer accessibility)
+                                                      - Performs privileged operation &
+                                                        returns result (bytes or -ERRNO)
 
-  5. Wrapper receives raw return value        ◀─── Return-from-trap instruction:
-     - If negative (-ERRNO): flips sign,            - Restores user registers & PC
-       sets positive errno, returns -1              - Mode: Kernel -> User
-     - Node.js converts -1/errno into JS Error
-  6. Backend code resumes after writeSync()
+  5. User-space caller/wrapper receives result ◀─── Kernel restores user state &
+     - In C/glibc: if negative (-ERRNO), flips       returns to User Mode
+       sign to positive errno & returns -1
+     - In Node.js: runtime maps failure to JS Error
+  6. Backend code resumes after the call
 ```
 
 এই ছয়টি ধাপের তিনটি design invariant একজন backend engineer-এর জন্য অমূল্য:
 
 1. **কেন User Code নিজে Kernel Function-এর Address দিতে পারে না?**
-   ধরুন user code যদি বলতে পারত *"kernel memory-র `0xffff8880...` address-এ jump করো"*, তবে একটা malicious program kernel-এর permission-check অংশটা এড়িয়ে সরাসরি মাঝখানের কোনো privileged code-এ লাফ দিয়ে ঢুকে পড়ত! তাই **boot-এর সময়** kernel নিজে CPU-র **Trap Table**-এ ঠিক করে দেয় কোন trap বা syscall number এলে kernel-এর *কোন নির্দিষ্ট entry point*-এ jump হবে। User program কেবল একটি সংখ্যা (**system-call number**) দেয়—address নয়!
-2. **Kernel User-Supplied Arguments-কে কখনোই অন্ধভাবে বিশ্বাস করে না (OSTEP `6.2` Security Tip):**
-   `write(fd, buf_addr, len)` call-এ user program নিজে একটি memory address (`buf_addr`) পাঠায়। কোনো attacker যদি ইচ্ছা করে `buf_addr`-এ **kernel memory-র** একটি address বসিয়ে দেয়, আর kernel তা যাচাই না করে ওই memory-র bytes file-এ লিখে দেয়, তবে attacker পুরো kernel ও অন্য সব process-এর গোপন memory পড়ে ফেলবে! তাই প্রতিটি syscall boundary-তে kernel বাধ্যতামূলকভাবে প্রতিটি argument (buffer pointer, length, file descriptor, permissions) যাচাই করে—ভুল বা অবৈধ হলে নিরাপদভাবে error (যেমন `-EFAULT` বা `-EBADF`) ফেরত দেয়।
+   ধরুন user code যদি বলতে পারত *"kernel memory-র `0xffff8880...` address-এ jump করো"*, তবে একটা malicious program kernel-এর permission-check অংশটা এড়িয়ে সরাসরি মাঝখানের কোনো privileged code-এ লাফ দিয়ে ঢুকে পড়ত! তাই **boot-এর সময়** kernel নিজেই একক নিরাপদ entry point স্থির করে দেয়—OSTEP-এর conceptual model-এ **Trap Table**-এর মাধ্যমে, আর বাস্তব x86-64 Linux-এ **`LSTAR`**-সহ syscall-entry **MSRs** এবং Linux-এর syscall dispatch table/implementation-এর মাধ্যমে। User program কেবল একটি সংখ্যা (**system-call number**) দেয়—কোনো kernel address নয়!
+2. **Kernel User-Supplied Inputs-কে কখনোই অন্ধভাবে বিশ্বাস করে না (Contract-Dependent Validation — OSTEP `6.2` Tip):**
+   প্রতিটি system call-এ ঠিক কোন কোন validation চলবে তা নির্ভর করে **সেই নির্দিষ্ট syscall-টির contract-এর ওপর** (যেমন কোনো argument-বিহীন `getpid()`-এ কোনো user memory pointer যাচাই করার প্রশ্নই ওঠে না—সব syscall-এ হুবহু একই validation চলে না)। কিন্তু যেখানেই user-supplied input থাকে, kernel তা কখনো অন্ধভাবে বিশ্বাস করে না! বাস্তব উদাহরণ হিসেবে **`write(fd, buf_addr, len)`** দেখুন: kernel এর contract অনুযায়ী যাচাই করে—(ক) `fd` একটি valid ও open file descriptor কি না, (খ) ওই file descriptor-টি লেখার জন্য অনুমোদিত access mode/permissions নিয়ে খোলা কি না, এবং (গ) user-এর দেওয়া buffer address (`buf_addr`) সত্যিই ওই process-এর accessible user-space memory-র ভেতর পড়ে কি না (যাতে কোনো attacker kernel memory-র ঠিকানা দিয়ে গোপন data file-এ লিখে ফেলতে না পারে!)। শর্ত না মানলে kernel নিরাপদভাবে error (যেমন `-EBADF` বা `-EFAULT`) ফেরত দেয়।
 3. **Wrapper Function বনাম Raw Syscall (`syscalls(2)`):**
-   `glibc` wrapper কেবল registers সাজানো ও `syscall` চালানোই করে না—অনেক সময় এটি architecture/kernel-version অনুযায়ী সামঞ্জস্য করে এবং Linux-এর raw negative return code (যেমন `-ENOENT`) পেলে তার চিহ্ন উল্টে positive `errno` set করে ও caller-কে `-1` return করে! *(পাশাপাশি কিছু library function—যেমন `strlen()` বা `JSON.stringify()`—পুরোপুরি user space-এই কাজ শেষ করে, কোনো syscall-ই করে না; আবার `printf()` বা Node.js buffered stream বহু call user-space buffer-এ জমিয়ে তারপর একবারে একটি `write()` syscall করে!)*
+   C program-এ `glibc` wrapper কেবল registers সাজানো ও `SYSCALL` চালানোই করে না—অনেক সময় এটি architecture/kernel-version অনুযায়ী সামঞ্জস্য করে এবং Linux-এর raw negative return code (যেমন `-ENOENT`) পেলে তার চিহ্ন উল্টে positive `errno` set করে ও caller-কে `-1` return করে। আর Node.js-এর মতো high-level runtime-এ `fs.writeSync()` থেকে kernel পর্যন্ত ভেতরের স্তরগুলো runtime version ও platform implementation অনুযায়ী ভিন্ন হতে পারে। *(পাশাপাশি কিছু library function—যেমন `strlen()` বা `JSON.stringify()`—পুরোপুরি user space-এই কাজ শেষ করে, কোনো syscall-ই করে না; আবার `printf()` বা buffered stream বহু call user-space buffer-এ জমিয়ে তারপর একবারে একটি `write()` syscall করে!)*
 
-### এক নজরে পার্থক্য: Ordinary Function Call বনাম Library Wrapper বনাম System Call
+### এক নজরে পার্থক্য: Ordinary Function Call বনাম Library Function বনাম System Call
 
 | বৈশিষ্ট্য | Ordinary User Function Call (যেমন `add(a, b)`) | Library Function (`libc` / Node.js) | System Call (যেমন `openat`, `read`, `write`) |
 | :--- | :--- | :--- | :--- |
-| **কোথায় চলে?** | সম্পূর্ণ User Space | User Space-এ শুরু হয়; প্রয়োজনে ভেতরে syscall করে (আবার `strlen`-এর মতো কিছু call কোনো syscall-ই করে না) | Hardware trap পেরিয়ে **Kernel Space**-এ execute হয় |
+| **কোথায় চলে?** | সম্পূর্ণ User Space | User Space-এ শুরু হয়; প্রয়োজনে ভেতরে syscall করে (আবার `strlen`-এর মতো কিছু call কোনো syscall-ই করে না) | Hardware entry পেরিয়ে **Kernel Space**-এ execute হয় |
 | **Privilege পরিবর্তন হয়?** | না (User → User) | শুধু ভেতরে syscall করলে হয় | **হ্যাঁ** (User → Kernel → User) |
-| **Jump target কে ঠিক করে?** | Program-এর নিজের compiled/JIT code | User-space library code | কেবল boot-time **Kernel Trap Table** + syscall number |
-| **Input validation?** | Application logic-এর ইচ্ছাধীন | Library-level sanity checks | **বাধ্যতামূলক strict kernel boundary validation** |
-| **Relative cost** | অত্যন্ত হালকা (nanosecond scale; অনেক সময় compiler/JIT inline করে ফেলে) | ভেতরে syscall না থাকলে হালকা; syscall করলে syscall overhead যোগ হয় | তুলনামূলকভাবে উল্লেখযোগ্যভাবে ভারী (privilege switch, state save/restore, validation, CPU mitigation overhead) |
+| **Jump target কে ঠিক করে?** | Program-এর নিজের compiled/JIT code | User-space library/runtime code | কেবল boot-time kernel entry configuration (OSTEP-এ conceptual Trap Table; x86-64 Linux-এ `LSTAR` MSR + Linux syscall dispatch/table) ও syscall number |
+| **Input validation?** | Application logic-এর ইচ্ছাধীন | Library-level sanity checks | **প্রতিটি syscall-এর contract অনুযায়ী kernel validation** (যেমন `write()`-এ valid FD, write access mode/permissions, ও user-buffer accessibility) |
+| **Relative cost** | অত্যন্ত হালকা (nanosecond scale; অনেক সময় compiler/JIT inline করে ফেলে) | ভেতরে syscall না থাকলে হালকা; syscall করলে syscall overhead যোগ হয় | তুলনামূলকভাবে উল্লেখযোগ্যভাবে ভারী (privilege switch, kernel stack switch ও state save/restore, contract validation, CPU mitigation overhead) |
 
 ### Backend Performance-এ Syscall Overhead কেন বাস্তবেই গুরুত্বপূর্ণ?
 
@@ -255,7 +271,7 @@ Phase 2 Block 5-এ আপনি শিখেছিলেন: দুটি `Θ(N
 দুটোই ঠিক সমান bytes লিখছে, কিন্তু user↔kernel boundary পার হওয়ার সংখ্যা কমে গেছে **হাজার গুণ**! *(অবশ্যই এখানেও Phase 1-এর trade-off আছে: user-space buffer-এ data জমে থাকা অবস্থায় যদি process হঠাৎ crash করে, তবে unflushed log হারিয়ে যেতে পারে—তাই performance বনাম crash-visibility/durability-র ভারসাম্য রাখতে হয়; kernel Page Cache ও `fsync()` durability আমরা Block 7-এ গভীরভাবে দেখব।)*
 
 > **Pause & Check 2** *(শেষের Self-Check Guidance দেখার আগে আপনার Block 1 notes-এ সংক্ষেপে উত্তর লিখুন।)*
-> 1. C-তে `write(1, "hi\n", 3)` দেখতে সাধারণ একটি function call-এর মতো, অথচ এটি একটি system call execute করে। **Library wrapper (`glibc`)**, **syscall number**, **trap instruction**, এবং **kernel trap table**—এই চারটি উপাদান ব্যবহার করে ধাপে ধাপে ব্যাখ্যা করুন কেন user code সরাসরি kernel-এর ভেতরে নিজের পছন্দমতো address-এ jump করতে পারে না।
+> 1. C-তে `write(1, "hi\n", 3)` দেখতে সাধারণ একটি function call-এর মতো, অথচ এটি একটি system call execute করে। **Library wrapper (`glibc`)**, **syscall number**, এবং **OSTEP-এর conceptual trap table বনাম আধুনিক x86-64 Linux-এর `LSTAR` MSR + entry assembly + syscall dispatch**-এর পার্থক্য ব্যবহার করে ধাপে ধাপে ব্যাখ্যা করুন কেন user code সরাসরি kernel-এর ভেতরে নিজের পছন্দমতো address-এ jump করতে পারে না।
 > 2. *"CPU যখনই user mode থেকে kernel mode-এ ঢোকে, তার মানেই user-space program একটি system call করেছে"*—এই বক্তব্যটি কি সঠিক? **System call**, **hardware exception**, এবং **hardware interrupt**-এর মধ্যে পার্থক্য দেখিয়ে ২–৩ বাক্যে ব্যাখ্যা করুন।
 
 ---
@@ -274,7 +290,7 @@ Linux-এ কোনো running program ঠিক কোন কোন **system ca
 
 একটি গুরুত্বপূর্ণ Linux security বাস্তবতা আগে থেকেই জেনে রাখুন। Ubuntu 24.04 LTS-এ default kernel setting হলো **`kernel.yama.ptrace_scope = 1`**। এর অর্থ:
 - আপনি যদি `sudo` ছাড়া অন্য কোনো already-running process-এর PID-তে `strace -p <PID>` দিয়ে attach করতে চান, তবে security-র কারণে Linux তা `EPERM` দিয়ে আটকে দেবে।
-- **কিন্তু আপনি যদি `strace <command>` দিয়ে লক্ষ্য program-টিকে সরাসরি `strace`-এর child হিসেবে চালু করেন**, তবে তা **কোনো `sudo` ছাড়াই, কোনো kernel parameter না বদলেই ১০০% নিরাপদে কাজ করে!** তাই Phase 3 জুড়ে আমরা সবসময় child-process tracing (`strace -c <cmd>`, `strace -e ... <cmd>`) ব্যবহার করব।
+- **কিন্তু আপনি যদি `strace <command>` দিয়ে লক্ষ্য program-টিকে সরাসরি `strace`-এর child হিসেবে চালু করেন**, তবে stated configuration-এ (`kernel.yama.ptrace_scope = 1`) কোনো `sudo` ছাড়া এবং কোনো kernel parameter না বদলেই child-command tracing **সাধারণত (normally) কাজ করে**—যদি execution পরিবেশটি `ptrace` tracing অনুমোদন করে (যেমন কোনো stricter container seccomp/AppArmor policy বা restricted sandbox না থাকে; অর্থাৎ সব পরিবেশে এটি কখনোই ব্যর্থ হবে না এমন গ্যারান্টি নেই)। তাই Phase 3 জুড়ে আমরা সবসময় unprivileged child-process tracing (`strace -c <cmd>`, `strace -e ... <cmd>`) ব্যবহার করব।
 
 ### অত্যন্ত জরুরি Scientific Guardrail: `strace` কী প্রমাণ করে—আর কী প্রমাণ করে *না*?
 
@@ -297,7 +313,7 @@ Phase 2 Block 7-এ আমরা দেখেছি, যেকোনো measurem
 
 একটু থেমে দেখুন Block 1-এ আপনি কোন শক্ত ভিত্তিটা তৈরি করলেন:
 - আপনি এখন জানেন একটি **operating system** কেন প্রয়োজন (resource manager + abstraction provider; OSTEP-এর Virtualization, Concurrency, Persistence স্তম্ভ) এবং **kernel** বনাম **user-space libraries/utilities** বনাম **applications**-এর স্পষ্ট বিভাজন।
-- আপনি **user mode বনাম kernel mode** hardware privilege boundary, **Limited Direct Execution (LDE)**, এবং **system call**-এর ৬-ধাপের প্রোটোকল (library wrapper → trap/syscall → trap table → kernel argument validation → return-from-trap → `errno`) বোঝেন—এবং system call-কে hardware exceptions ও hardware interrupts থেকে স্পষ্টভাবে আলাদা করতে পারেন।
+- আপনি **user mode বনাম kernel mode** hardware privilege boundary, **Limited Direct Execution (LDE)**, এবং **system call**-এর ধাপগুলো (OSTEP-এর generic trap-table model বনাম x86-64 Linux-এর `LSTAR` MSR, `RCX`/`R11`, entry-assembly stack switch ও state save, Linux syscall dispatch, contract-based validation, এবং `errno`) বোঝেন—এবং system call-কে hardware exceptions ও hardware interrupts থেকে স্পষ্টভাবে আলাদা করতে পারেন।
 - আপনি জানেন syscall boundary পার হওয়ার overhead backend design (যেমন buffering বনাম per-item write)-কে কীভাবে প্রভাবিত করে, এবং `strace` দিয়ে নিরাপদে সেই boundary পর্যবেক্ষণ ও তার সীমা বিচার করতে পারেন।
 
 কিন্তু এবার আপনার `strace -c node -e "console.log('hello')"` চালানোর পরই মাথায় একটি দারুণ প্রশ্ন জাগবে:
@@ -332,9 +348,9 @@ Phase 2 Block 7-এ আমরা দেখেছি, যেকোনো measurem
 | **Operating System Abstractions (Virtualization, Concurrency, Persistence)** | `Working Understanding` | Unifying mental map separating CPU/memory sharing, concurrent execution (Phase 6), and durable I/O. |
 | **User Space vs. Kernel Space (Privilege Modes)** | `Working Understanding` | Hardware privilege boundary ensures one buggy or malicious backend process cannot crash the host or read another process's secrets. |
 | **Limited Direct Execution (LDE)** | `Working Understanding` | Explains how the OS achieves near-native CPU speed while retaining hardware-enforced control over restricted operations. |
-| **System Call (Syscall) & Trap Table** | `Working Understanding` | Controlled user-to-kernel entry mechanism (`trap`/`syscall` instruction + boot-time trap table), distinct from ordinary function calls, hardware exceptions, and hardware interrupts. |
-| **Library Wrapper (`libc` / Node.js) vs. Raw Syscall** | `Working Understanding` | Explains why high-level code (`fs.writeSync`, `console.log`, `write()`) invokes user-space wrappers that trigger raw Linux syscalls (`openat`, `read`, `write`) and translate negative kernel errors to `errno`. |
-| **System-Call Tracing (`strace` on child commands)** | `Practical Competence` | Primary empirical lens for observing exact kernel interactions of any backend command safely without `sudo`. |
+| **System Call (Syscall) & Entry Mechanism** | `Working Understanding` | Controlled user-to-kernel entry mechanism (OSTEP's conceptual boot-time trap table; actual x86-64 Linux `LSTAR` MSR + `SYSCALL` + entry-assembly stack switch/state save + Linux syscall dispatch), distinct from ordinary function calls, hardware exceptions, and hardware interrupts. |
+| **Library Wrapper (`libc` / Runtime Layers) vs. Raw Syscall** | `Working Understanding` | Separates C `glibc` wrappers (which invoke syscalls and map negative kernel error codes to `-1`/`errno`) and runtime/platform-dependent Node.js internal layers from the raw Linux syscalls (`openat`, `read`, `write`) observed at the kernel boundary. |
+| **System-Call Tracing (`strace` on child commands)** | `Practical Competence` | Primary empirical lens for observing exact kernel interactions of a child command—normally usable without `sudo` under Ubuntu's default `yama.ptrace_scope = 1` when the environment permits tracing. |
 
 ### Mandatory Authoritative Resources *(Targeted Reading — ~55–70 min total)*
 
@@ -350,9 +366,10 @@ Phase 2 Block 7-এ আমরা দেখেছি, যেকোনো measurem
      - `strace(1)`: কেবল *Description* এবং `-c` ও `-e trace=...` options।
    - **What to extract:** বাস্তব Linux-এ raw syscall বনাম `glibc` wrapper-এর সম্পর্ক (`-1` + `errno`) এবং unprivileged child command-এ `strace` ব্যবহারের সঠিক syntax।
 
-### Optional Supplementary Resource *(Outside Mandatory Budget — Do Not Treat as Mandatory)*
+### Optional Supplementary Resources *(Outside Mandatory Budget — Do Not Treat as Mandatory)*
 
 - **Supplementary (Free):** OSTEP, Version 1.10 — Chapter 2, Section `2.6` (*Some History*, pp. 12–17 of [`intro.pdf`](https://pages.cs.wisc.edu/~remzi/OSTEP/intro.pdf)) — batch systems থেকে multiprogramming ও Unix-এর ঐতিহাসিক বিবর্তন জানতে আগ্রহী হলে ঐচ্ছিকভাবে পড়তে পারেন।
+- **Optional Technical Verification References (x86-64 Linux Syscall Entry — Reference Only, Not Required Reading):** Linux Kernel [`arch/x86/entry/entry_64.S`](https://github.com/torvalds/linux/blob/master/arch/x86/entry/entry_64.S) (64-bit `SYSCALL` entry comment: `RIP`→`RCX`, `RFLAGS`→`R11`, `LSTAR` MSR, ও kernel stack switch) এবং Linux Kernel Documentation — [Adding a New System Call](https://kernel.org/doc/html/v5.3/process/adding-syscalls.html)।
 
 ---
 
@@ -383,36 +400,41 @@ strace -c node -e "console.log('hello')"
 
 #### Step B — Unbuffered Per-Line Writes বনাম Batched Write (`1,000` Log Lines)
 
-এবার একটি isolated `/tmp` directory তৈরি করে দুটি minimal Node.js command তুলনা করুন (একই `1,000`টি JSON log লাইন লিখবে; শেষে `/tmp` directory-টি নিরাপদে মুছে দেওয়া হবে):
+এবার একটি subshell-এর ভেতর isolated `/tmp` directory তৈরি করে দুটি minimal Node.js command তুলনা করুন (একই `1,000`টি JSON log লাইন লিখবে; `trap` থাকার কারণে command স্বাভাবিকভাবে শেষ হোক, মাঝপথে error হোক, বা আপনি `Ctrl+C` দিয়ে interrupt করুন—generated temporary directory-টি সব ক্ষেত্রেই নিরাপদে মুছে যাবে, আর subshell ব্যবহার করায় `trap` বা `set -e` আপনার মূল interactive terminal session-কে প্রভাবিত করবে না):
 
 ```bash
-TMPDIR=$(mktemp -d /tmp/phase3-b1.XXXXXX)
+(
+  set -euo pipefail
+  TMPDIR=$(mktemp -d /tmp/phase3-b1.XXXXXX)
+  trap 'rm -rf -- "$TMPDIR"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 
-# Approach 1: প্রতিটি log line-এর জন্য আলাদা fs.writeSync (unbuffered)
-strace -c -e trace=write node -e '
-const fs = require("node:fs");
-const fd = fs.openSync(process.argv[1], "w");
-for (let i = 0; i < 1000; i++) {
-  fs.writeSync(fd, `{"event":"order_check","i":${i}}\n`);
-}
-fs.closeSync(fd);
-' "$TMPDIR/unbuffered.log"
+  # Approach 1: প্রতিটি log line-এর জন্য আলাদা fs.writeSync (unbuffered)
+  strace -c -e trace=write node -e '
+  const fs = require("node:fs");
+  const fd = fs.openSync(process.argv[1], "w");
+  for (let i = 0; i < 1000; i++) {
+    fs.writeSync(fd, `{"event":"order_check","i":${i}}\n`);
+  }
+  fs.closeSync(fd);
+  ' "$TMPDIR/unbuffered.log"
 
-# Approach 2: User space-এ array/string-এ জমিয়ে একবারে batched fs.writeSync
-strace -c -e trace=write node -e '
-const fs = require("node:fs");
-const lines = [];
-for (let i = 0; i < 1000; i++) {
-  lines.push(`{"event":"order_check","i":${i}}\n`);
-}
-const fd = fs.openSync(process.argv[1], "w");
-fs.writeSync(fd, lines.join(""));
-fs.closeSync(fd);
-' "$TMPDIR/batched.log"
+  # Approach 2: User space-এ array/string-এ জমিয়ে একবারে batched fs.writeSync
+  strace -c -e trace=write node -e '
+  const fs = require("node:fs");
+  const lines = [];
+  for (let i = 0; i < 1000; i++) {
+    lines.push(`{"event":"order_check","i":${i}}\n`);
+  }
+  const fd = fs.openSync(process.argv[1], "w");
+  fs.writeSync(fd, lines.join(""));
+  fs.closeSync(fd);
+  ' "$TMPDIR/batched.log"
 
-# যাচাই করুন দুটি ফাইলের byte size একদম সমান, তারপর নিরাপদে পরিষ্কার করুন
-wc -c "$TMPDIR/unbuffered.log" "$TMPDIR/batched.log"
-rm -rf "$TMPDIR"
+  # যাচাই করুন দুটি ফাইলের byte size একদম সমান (সব file op কেবল $TMPDIR-এর ভেতরেই)
+  wc -c "$TMPDIR/unbuffered.log" "$TMPDIR/batched.log"
+)
 ```
 
 #### Expected Observation Patterns — এবং এটি কী প্রমাণ করে বনাম কী প্রমাণ করে *না*
@@ -420,7 +442,7 @@ rm -rf "$TMPDIR"
 - **Expected patterns (exact numbers machine/Node-version ভেদে সামান্য ভিন্ন হতে পারে):**
   - Step A-তে `strace -e trace=write /bin/echo ...` দেখাবে একটি `write(1, ...)` call এবং তার return value হিসেবে লেখা byte সংখ্যা। `/bin/echo`-র মোট syscall সংখ্যা থাকবে কয়েক ডজনের ঘরে, আর `node -e "console.log('hello')"`-র মোট syscall সংখ্যা হবে কয়েক শত (কারণ runtime binary, shared libraries, memory mappings, ও internal event/I/O setup করতে অনেকগুলো syscall লাগে)।
   - Step B-তে `wc -c` প্রমাণ করবে দুটি ফাইলে exact সমান bytes লেখা হয়েছে, অথচ Approach 1-এ `write` syscall-এর সংখ্যা হবে **`1,000+`** (আপনার loop-এর 1,000টি + Node.js runtime-এর নিজস্ব কয়েকটি internal `write`), আর Approach 2-এ `write` syscall নেমে আসবে **এক অঙ্কের ঘরে** (মূল ফাইল লেখার `1`টি batched `write` + Node.js runtime-এর অভ্যন্তরীণ কয়েকটি ছোট `write`)!
-- **এই পরীক্ষাটি যা প্রমাণ করে:** User-space code থেকে প্রতিবার unbuffered `fs.writeSync` ডাকলে প্রতিবারই user→kernel boundary পেরিয়ে একটি বাস্তব Linux `write` syscall ঘটে; আর user-space batching দিয়ে exact একই output অনেক কম syscall-এ লেখা যায়।
+- **এই পরীক্ষাটি যা প্রমাণ করে:** `strace` সরাসরি আপনার চলমান Node.js program থেকে Linux kernel-এ পাঠানো **আসল `write` system call-গুলো** পর্যবেক্ষণ করে—দেখিয়ে দেয় যে প্রতিবার unbuffered `fs.writeSync` ডাকলে user→kernel boundary পেরিয়ে বাস্তব Linux `write` syscall ঘটে, এবং user-space batching দিয়ে exact একই output অনেক কম `write` syscall-এ লেখা যায় (ভেতরের Node.js wrapper/library স্তর যেভাবেই implement করা থাকুক না কেন)।
 - **এই পরীক্ষাটি যা প্রমাণ করে *না*:**
   - `strace -c`-এ দেখানো `seconds` বা `usecs/call` কোনো **untraced production latency** নয় (কারণ `strace` নিজেই প্রতি syscall-এ `ptrace` stop/resume overhead যোগ করে)।
   - এখান থেকে কোনো universal fixed speedup multiplier বা disk durability guarantee দাবি করা যাবে না (কারণ `write` এখানে কেবল kernel memory buffer-এ লিখে ফিরছে—physical disk flush নয়; সেটি আসবে Block 7-এ)।
@@ -440,7 +462,7 @@ rm -rf "$TMPDIR"
 3. **Scenario 3 — AI-Generated Technical Explanation Audit:**
    একজন teammate একটি AI coding assistant-কে Linux system calls সম্পর্কে জিজ্ঞাসা করলে AI নিচের উত্তরটি দিল:
    > *"In Linux, calling `write()` in C or `fs.writeSync()` in Node.js is just a normal library function call into `libc` that jumps directly to the kernel's `sys_write` memory address. Also, because the kernel protects hardware, every single time the CPU transitions from user mode to kernel mode or runs a privileged operation, it is always because a user program invoked a system call."*
-   - **আপনার কাজ:** এই ছোট অনুচ্ছেদটির ভেতর লুকানো **তিনটি আলাদা technical ভুল** চিহ্নিত করুন, প্রতিটি ভুল কেন mechanism-গতভাবে অসত্য (বা নিরাপত্তা-ভঙ্গকারী) তা ব্যাখ্যা করুন (**`glibc` wrapper বনাম trap instruction**, **boot-time trap table ও syscall number বনাম direct kernel address jump**, এবং **system calls বনাম hardware exceptions ও hardware interrupts / internal kernel work**), এবং অনুচ্ছেদটিকে ২–৪ বাক্যে নিখুঁতভাবে rewrite করুন।
+   - **আপনার কাজ:** এই ছোট অনুচ্ছেদটির ভেতর লুকানো **তিনটি আলাদা technical ভুল** চিহ্নিত করুন, প্রতিটি ভুল কেন mechanism-গতভাবে অসত্য (বা নিরাপত্তা-ভঙ্গকারী) তা ব্যাখ্যা করুন (**library/runtime wrapper বনাম hardware syscall instruction** [এবং Node.js-এ ভেতরের wrapper পথ runtime/platform-নির্ভর], **kernel-configured entry point—OSTEP-এ conceptual trap table ও x86-64 Linux-এ `LSTAR` MSR + entry assembly + Linux syscall dispatch—বনাম direct kernel address jump**, এবং **system calls বনাম hardware exceptions ও hardware interrupts / internal kernel work**), এবং অনুচ্ছেদটিকে ২–৪ বাক্যে নিখুঁতভাবে rewrite করুন।
 
 ---
 
@@ -455,7 +477,7 @@ rm -rf "$TMPDIR"
 
 1. **(LO 1.1 / Outcome 1)** Operating system-এর দুটি মূল ভূমিকা (**resource manager** এবং **abstraction provider**) ব্যাখ্যা করুন। OSTEP-এর তিনটি স্তম্ভ—**Virtualization**, **Concurrency**, এবং **Persistence**—কোন কোন মৌলিক hardware problem সমাধান করে, এবং একটি real Node.js + PostgreSQL server-এ প্রতিটির ভূমিকা কী?
 2. **(LO 1.1, LO 1.2 / Outcome 1)** **Operating System**, **Kernel**, **User-Space System Libraries/Utilities** (`glibc`, `bash`, `strace`), এবং **Backend Applications**-এর মধ্যে স্পষ্ট সীমারেখা টানুন। কেন একটি user-space utility (`ls` বা `strace`) kernel-এর অংশ নয়?
-3. **(LO 1.2, LO 1.3 / Outcome 1)** **Limited Direct Execution (LDE)** কীভাবে একইসাথে high performance (direct CPU execution) এবং system control/isolation (hardware privilege boundary) রক্ষা করে? একটি `write()` system call শুরু থেকে শেষ পর্যন্ত যে ৬টি ধাপে চলে—`glibc` wrapper, syscall number, trap instruction, boot-time trap table, kernel argument validation, এবং return-from-trap + `errno`—তা ধাপে ধাপে ব্যাখ্যা করুন।
+3. **(LO 1.2, LO 1.3 / Outcome 1)** **Limited Direct Execution (LDE)** কীভাবে একইসাথে high performance (direct CPU execution) এবং system control/isolation (hardware privilege boundary) রক্ষা করে? একটি `write()` system call কীভাবে চলে—OSTEP-এর generic conceptual **trap table** model এবং আধুনিক **x86-64 Linux**-এর বাস্তব entry mechanism (`LSTAR` MSR, `SYSCALL` দিয়ে `RIP`→`RCX` ও `RFLAGS`→`R11` save, kernel entry assembly-র stack switch ও user state save, Linux syscall dispatch/table, `write()`-এর contract অনুযায়ী argument validation, এবং return + `errno`) আলাদাভাবে স্পষ্ট করে ব্যাখ্যা করুন।
 4. **(LO 1.2, LO 1.3 / Outcome 1)** কেন *"every privileged operation or kernel-mode entry is mediated by a system call"* বলা ভুল? **System calls**, **hardware exceptions**, এবং **hardware interrupts**-এর পার্থক্য উদাহরণসহ ব্যাখ্যা করুন।
 5. **(LO 1.3, LO 1.4 / Outcome 1)** একটি ordinary user-space function call-এর তুলনায় system call কেন বেশি overhead বহন করে, এবং এটি backend buffering design-এ কী প্রভাব ফেলে? Ubuntu-তে `strace` দিয়ে কীভাবে নিরাপদভাবে (unprivileged) এই behavior পর্যবেক্ষণ করা যায়, এবং `strace` output ঠিক কী প্রমাণ করে আর কী প্রমাণ করে *না*?
 
@@ -482,8 +504,8 @@ rm -rf "$TMPDIR"
      - **Concurrency:** একাধিক overlapping checkout request বা internal thread একই shared state/resource স্পর্শ করলে race condition ছাড়া নিরাপদ সমন্বয় প্রয়োজন হয় *(গভীর coverage Phase 6-এ)*।
      - **Persistence:** Server restart বা power loss-এর পরও order records, PostgreSQL data files, ও logs যেন না হারায়, সেজন্য OS storage hardware-কে files ও directories-এর মাধ্যমে পরিচালনা করে।
 - **Pause & Check 2:**
-  1. *শক্তিশালী উত্তরে থাকবে:* `write()` call করলে আপনার code প্রথমে user space-এ থাকা **`glibc` library wrapper**-এ যায়। সেই wrapper একটি **syscall number** ও arguments CPU register-এ বসিয়ে hardware **trap / `syscall` instruction** চালায়। CPU তখন privilege বাড়িয়ে kernel mode-এ ঢোকে এবং কেবল boot-এর সময় kernel-এর বসিয়ে রাখা **trap table** দেখেই নির্দিষ্ট kernel handler-এ jump করে। যদি user code নিজেই kernel memory-র ইচ্ছামতো address-এ jump করতে পারত, তবে সে kernel-এর permission ও security check বাইপাস করে পুরো system দখল করে নিতে পারত।
+  1. *শক্তিশালী উত্তরে থাকবে:* C-তে `write()` call করলে code প্রথমে user space-এ থাকা **`glibc` library wrapper**-এ যায়, যা একটি **syscall number** ও arguments CPU register-এ বসিয়ে hardware syscall/trap instruction চালায়। **OSTEP-এর generic conceptual model**-এ hardware boot-time **trap table** দেখে handler-এ jump করে ও registers kernel stack-এ save করে; আর **আধুনিক x86-64 Linux**-এ boot-এর সময় configure করা syscall-entry MSR (**`LSTAR`**)-এর ঠিকানায় `SYSCALL` jump করে (CPU নিজে শুধু `RIP`→`RCX` এবং `RFLAGS`→`R11` save করে, stack switch করে না), এরপর Linux-এর kernel entry assembly (`entry_64.S`) kernel stack-এ switch করে প্রয়োজনীয় user state save করে এবং syscall number ধরে Linux syscall implementation/table-এ dispatch করে। উভয় ক্ষেত্রেই entry point boot-এ কেবল kernel নির্ধারণ করে—যদি user code নিজেই kernel memory-র ইচ্ছামতো address-এ jump করতে পারত, তবে সে kernel-এর security ও contract validation বাইপাস করে পুরো system দখল করে নিতে পারত।
   2. *শক্তিশালী উত্তরে থাকবে:* বক্তব্যটি **ভুল**। **System call** হলো user program-এর ইচ্ছাকৃত (synchronous) সেবা-অনুরোধ। কিন্তু এর বাইরেও অন্তত দুটি hardware-driven পথে CPU kernel mode-এ ঢোকে: (১) **Hardware exceptions / faults** (synchronous—যেমন অবৈধ memory access বা page fault বা user mode-এ privileged instruction চালানোর চেষ্টা), এবং (২) **Hardware interrupts** (asynchronous—যেমন timer tick বা disk/network device-এর completion signal)। পাশাপাশি kernel নিজেও ভেতরে privileged কাজ চালাতে পারে।
 - **Pause & Check 3:**
   1. *শক্তিশালী উত্তরে থাকবে:* `strace` প্রতিটি syscall-এর entry ও exit-এ `ptrace` দিয়ে target process-টিকে থামিয়ে inspect করে—ফলে এটি ব্যাপক observer overhead যোগ করে এবং wall-clock time কৃত্রিমভাবে বাড়িয়ে দেয়। তাই `strace`-এর অধীনে পাওয়া `120 ms` কখনোই untraced production startup latency প্রমাণ করে না। `strace -c` নির্ভরযোগ্যভাবে প্রমাণ করে **কোন কোন syscall** এবং **মোট কতবার** ডাকা হয়েছে (এবং কতগুলো error হয়েছে)।
-  2. *শক্তিশালী উত্তরে থাকবে:* Ubuntu 24.04-এ default `kernel.yama.ptrace_scope = 1` নিরাপত্তা নীতি অন্য already-running প্রক্রিয়ায় unprivileged `strace -p <PID>` attach করা আটকে দেয় (`EPERM`)। তাই `sudo` বা kernel parameter পরিবর্তন ছাড়া নিরাপদ উপায় হলো লক্ষ্য command-টিকে সরাসরি `strace`-এর child হিসেবে চালু করা—যেমন `strace -c <command>` বা `strace -e trace=... <command>`।
+  2. *শক্তিশালী উত্তরে থাকবে:* Ubuntu 24.04-এ default `kernel.yama.ptrace_scope = 1` নিরাপত্তা নীতি অন্য already-running প্রক্রিয়ায় unprivileged `strace -p <PID>` attach করা আটকে দেয় (`EPERM`)। তাই `sudo` বা kernel parameter পরিবর্তন ছাড়া নিরাপদ উপায় হলো লক্ষ্য command-টিকে সরাসরি `strace`-এর child হিসেবে চালু করা—যেমন `strace -c <command>` বা `strace -e trace=... <command>`—যা এই configuration-এ **সাধারণত (normally)** কাজ করে, যদি execution পরিবেশটি (যেমন container/seccomp policy) `ptrace` tracing অনুমোদন করে।
